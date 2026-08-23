@@ -1,0 +1,27 @@
+name: record
+on:
+  schedule:
+    - cron: "23 */2 * * *"    # every 2 hours, offset from the top
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: record
+  cancel-in-progress: false
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: record snapshot
+        run: python record.py
+      - name: commit
+        run: |
+          git config user.name "recorder"
+          git config user.email "actions@users.noreply.github.com"
+          git add data
+          git diff --cached --quiet || git commit -m "snapshot $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push
