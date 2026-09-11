@@ -1,171 +1,162 @@
-"""Phase 1 coherence screener: do quoted probabilities obey the rules?
+"""Coherence report on ONE snapshot: a thin wrapper over pmlab.
 
-Runs against the newest recorded snapshot (or a given one) and checks the
-constraints that need no model at all, only logic:
-
-  1. Complement: on Kalshi, buying YES and NO at the ask must cost at
-     least $1; less is a gross arbitrage. Reported gross AND net of the
-     venue's trading fee, because the whole lesson of screening real
-     markets is that gross violations are usually just the spread.
-  2. Bucket sums: for a mutually exclusive Kalshi event, the sum of YES
-     asks below $1 is a candidate underround (buy every bucket, one must
-     pay). Candidate, not certain: the flag does not promise the buckets
-     are exhaustive, so each hit needs a human read of the rules.
-  3. Ladder monotonicity: threshold markets on one variable ("X or
-     above") must price P(>= s) decreasing in s. Inversions beyond the
-     spread are incoherence between strikes.
-
-Every number printed is a count or a distribution over the whole
-snapshot; single cherry-picked hits are how this class of tool lies.
-
-    python screen.py                # newest snapshot
+    python screen.py                        # newest snapshot under data/
     python screen.py data/20260823/0118Z.json.gz
+    python screen.py --archive archive      # also look at the data branch
+
+Every screen this prints lives in :mod:`pmlab.ladders`,
+:mod:`pmlab.complement` and :mod:`pmlab.buckets`, and is the same code the
+archive-wide replay runs, so a number here and a number in ``results/``
+can never disagree because two parsers drifted apart. What this script
+adds is a readable single-snapshot view for the moment you want to know
+what the venues look like *right now*.
+
+The time series -- which is the output that actually answers anything --
+is ``python -m pmlab.replay``.
+
+Three constraints, each reported gross and net of the venue's own fee with
+the venue's own rounding:
+
+1. **Complement.** Buying both sides must cost at least $1. Screened on
+   Polymarket's quoted outcome pair and on PredictIt's YES/NO asks. NOT
+   screened on Kalshi, where ``no_ask == 1 - yes_bid`` makes it a
+   tautology; that identity is asserted instead and a breach is an error.
+2. **Bucket sums.** Mutually exclusive events whose asks sum below $1.
+   Candidates, not arbitrages: the survivors are open-universe events
+   whose listed buckets are not exhaustive.
+3. **Ladder monotonicity.** P(>= s) must not increase with s. A higher
+   strike bidding over a lower strike's ask is incoherence beyond the
+   spread -- and, at one cent, is still two cents short of a trade.
 """
 from __future__ import annotations
 
-import gzip
-import json
-import re
+import argparse
 import sys
 from pathlib import Path
 
-DATA = Path(__file__).resolve().parent / "data"
+from pmlab import buckets as buckets_mod
+from pmlab import complement as complement_mod
+from pmlab import fees as fees_mod
+from pmlab import ladders as ladders_mod
+from pmlab.archive import load_snapshot, snapshot_paths
 
-# Kalshi taker fee per contract, both legs of a $1-payout pair:
-# ceil-free approximation of 0.07 * p * (1-p), documented by the venue.
-def kalshi_fee(p: float) -> float:
-    return 0.07 * p * (1.0 - p)
-
-
-LADDER = re.compile(
-    r"(?:^(?:above|at or above)\s+\$?([\d,]+(?:\.\d+)?)\s*$)"
-    r"|(?:^\$?([\d,]+(?:\.\d+)?)\s+or\s+(?:above|higher|more)\s*$)",
-    re.IGNORECASE)
+ROOT = Path(__file__).resolve().parent
 
 
-def load(path: Path) -> dict:
-    with gzip.open(path, "rt", encoding="utf-8") as fh:
-        return json.load(fh)
+def c(x: float) -> str:
+    """Dollars as cents, the unit every venue in this archive quotes in."""
+    return f"{x * 100:.1f}c"
 
 
-def f(x) -> float:
-    try:
-        return float(x)
-    except (TypeError, ValueError):
-        return 0.0
+def report(path: Path) -> int:
+    snap = load_snapshot(path)
+    print(f"snapshot {snap.t:%Y-%m-%dT%H:%M:%SZ}  schema {snap.schema}  {path}")
+    for name in ("kalshi", "polymarket", "predictit", "manifold"):
+        print(f"  {name}: {len(snap.venues.get(name, [])):,} rows")
+    if snap.errors:
+        print(f"  recorder errors: {snap.errors}")
+    if not snap.kalshi:
+        print("no kalshi rows in this snapshot", file=sys.stderr)
 
-
-def screen_complement(events: list[dict]) -> None:
-    quoted = gross = net = 0
-    best = None
-    for ev in events:
-        for m in ev["markets"]:
-            ya, na = f(m.get("yes_ask_dollars")), f(m.get("no_ask_dollars"))
-            if not (0 < ya < 1 and 0 < na < 1):
-                continue
-            quoted += 1
-            cost = ya + na
-            if cost >= 1.0:
-                continue
-            gross += 1
-            edge = 1.0 - cost - kalshi_fee(ya) - kalshi_fee(na)
-            if edge > 0:
-                net += 1
-                if best is None or edge > best[0]:
-                    best = (edge, m.get("ticker"), ya, na)
-    print(f"[complement] {quoted} two-sided Kalshi books: "
-          f"{gross} gross YES+NO < $1, {net} survive the fee model")
-    if best:
-        print(f"  best net edge {best[0]*100:.1f}c on {best[1]} "
-              f"(yes ask {best[2]:.2f}, no ask {best[3]:.2f})")
-
-
-def screen_bucket_sums(events: list[dict]) -> None:
-    sums, candidates = [], []
-    for ev in events:
-        if not ev.get("mutually_exclusive"):
-            continue
-        asks = [f(m.get("yes_ask_dollars")) for m in ev["markets"]]
-        # Every bucket must be buyable: one bucket with no ask makes the
-        # sum meaningless and manufactures a fake underround (the missing
-        # bucket is usually the favorite).
-        if len(asks) < 3 or any(not 0 < a <= 1 for a in asks):
-            continue
-        s = sum(asks)
-        sums.append(s)
-        fees = sum(kalshi_fee(a) for a in asks)
-        if s + fees < 1.0:
-            candidates.append((1.0 - s - fees, ev["event_ticker"], len(asks)))
-    if sums:
-        sums.sort()
-        mid = sums[len(sums) // 2]
-        print(f"[bucket sums] {len(sums)} mutually-exclusive events with 3+ "
-              f"quoted buckets: median sum of asks {mid:.2f} "
-              f"(above 1 = the normal overround)")
-    candidates.sort(reverse=True)
-    print(f"  {len(candidates)} candidate underrounds net of fees "
-          f"(exhaustiveness NOT verified; read the event rules)")
-    for edge, tick, n in candidates[:5]:
-        print(f"    {tick}: {n} buckets, apparent edge {edge*100:.1f}c")
-
-
-def screen_ladders(events: list[dict]) -> None:
-    ladders = inversions = 0
-    worst = None
-    for ev in events:
-        rungs = []
-        for m in ev["markets"]:
-            g = LADDER.search((m.get("yes_sub_title") or "").strip())
-            yb, ya = f(m.get("yes_bid_dollars")), f(m.get("yes_ask_dollars"))
-            if g and 0 < yb <= ya < 1:
-                strike = (g.group(1) or g.group(2)).replace(",", "")
-                rungs.append((float(strike), yb, ya))
-        if len(rungs) < 3:
-            continue
-        rungs.sort()
-        ladders += 1
-        for (s1, b1, a1), (s2, b2, a2) in zip(rungs, rungs[1:]):
-            # P(>= s2) must not exceed P(>= s1): a HIGHER threshold whose
-            # BID clears the lower threshold's ASK is beyond-spread
-            # incoherence, not noise.
-            if b2 > a1:
-                inversions += 1
-                gap = b2 - a1
-                if worst is None or gap > worst[0]:
-                    worst = (gap, ev["event_ticker"], s1, s2)
-    print(f"[ladders] {ladders} threshold ladders with 3+ quoted rungs: "
-          f"{inversions} beyond-spread monotonicity inversions")
-    if worst:
-        print(f"  worst: {worst[1]} strikes {worst[2]:g} vs {worst[3]:g}, "
-              f"bid over ask by {worst[0]*100:.1f}c")
-
-
-def main() -> None:
-    if len(sys.argv) > 1:
-        path = Path(sys.argv[1])
+    print("\n[invariant] Kalshi no_ask == 1 - yes_bid")
+    ident = complement_mod.kalshi_identity(snap.kalshi)
+    print(f"  {ident.checked - ident.deviations:,} of {ident.checked:,} "
+          f"two-sided books hold (max error {ident.max_abs_error:.2e})")
+    if not ident.holds:
+        print("  BROKEN: the complement screen was excluded from Kalshi "
+              "because this identity held. Re-derive it before reporting "
+              "any Kalshi complement number.", file=sys.stderr)
+        for e in ident.examples:
+            print(f"    {e}", file=sys.stderr)
     else:
-        snaps = sorted(DATA.glob("*/*.json.gz"))
-        if not snaps:
-            raise SystemExit("no snapshots recorded yet; run record.py")
-        path = snaps[-1]
-    snap = load(path)
-    print(f"snapshot {snap['t']}")
-    for name, rows in snap["venues"].items():
-        print(f"  {name}: {len(rows)} rows")
-    events = snap["venues"].get("kalshi", [])
-    if not events:
-        raise SystemExit("no kalshi events in this snapshot")
-    print()
-    screen_complement(events)
-    print()
-    screen_bucket_sums(events)
-    print()
-    screen_ladders(events)
-    print("\nNOTE: this is a coherence measurement, not a trading signal. "
-          "Most gross violations are the spread wearing a costume; the "
-          "screen exists to measure how often anything survives honest "
-          "fee accounting, snapshot after snapshot.")
+        print("  so YES ask + NO ask = 1 + spread by construction: the "
+              "complement screen cannot fire on Kalshi and is not run there.")
+
+    print("\n[complement] venues where the screen can fire")
+    poly = complement_mod.screen_polymarket(snap.polymarket)
+    print(f"  Polymarket: {poly.pairs:,} quoted outcome pairs "
+          f"({poly.two_sided_books:,} two-sided books, {poly.crossed_books} "
+          f"crossed), median pair sum "
+          f"{poly.overround_median if poly.overround_median is not None else float('nan'):.4f}")
+    print(f"    {poly.gross} sum below $1 gross, {poly.net} net of fee")
+    if poly.worst:
+        w = poly.worst
+        print(f"    worst: {w.question[:70]!r} {w.prices} = {w.total:.4f} "
+              f"({c(w.gross_edge)} gross, {c(w.net_edge)} net)")
+    pi = complement_mod.screen_predictit(snap.predictit)
+    print(f"  PredictIt: {pi.pairs:,} YES/NO ask pairs, median cost "
+          f"{pi.overround_median if pi.overround_median is not None else float('nan'):.4f}")
+    print(f"    {pi.gross} below $1 gross, {pi.net} net of the 10%-of-profit "
+          f"and 5%-withdrawal fees")
+    if pi.worst:
+        w = pi.worst
+        print(f"    worst: {w.market_name[:50]!r} / {w.contract_name[:30]!r} "
+              f"{w.yes_cost:.2f}+{w.no_cost:.2f} "
+              f"({c(w.gross_edge)} gross, {c(w.net_edge)} net)")
+
+    print("\n[bucket sums] mutually exclusive Kalshi events")
+    buc = buckets_mod.screen_buckets(snap.kalshi)
+    med = buc.median_ask_sum
+    print(f"  {buc.screened:,} of {buc.events:,} events with 3+ fully quoted "
+          f"buckets, median sum of asks "
+          f"{med if med is not None else float('nan'):.3f} "
+          f"(above 1 = the normal overround)")
+    print(f"  {buc.gross} candidate underrounds gross, {buc.net} net of fees")
+    for cand in buc.candidates[:5]:
+        print(f"    {cand.event_ticker}: {cand.buckets} buckets, asks sum "
+              f"{cand.ask_sum:.3f}, {c(cand.gross_edge)} gross / "
+              f"{c(cand.net_edge)} net -- {cand.title[:60]}")
+    if buc.candidates:
+        print(f"  {buckets_mod.OPEN_UNIVERSE_CAVEAT}")
+
+    print("\n[ladders] Kalshi threshold ladders")
+    lad = ladders_mod.screen_ladders(snap.kalshi)
+    print(f"  {lad.ladders:,} ladders with 3+ quoted rungs ({lad.rungs:,} "
+          f"rungs; {lad.ladders_structured:,} from the venue's strike fields, "
+          f"{lad.ladders_title:,} parsed from titles)")
+    print(f"  {lad.adjacent_pairs:,} adjacent strike pairs tested")
+    print(f"  {lad.inversions_gross} monotonicity inversions gross, "
+          f"{lad.inversions_net} net of fee")
+    if lad.worst_inversion:
+        i = lad.worst_inversion
+        print(f"    worst: {i.event_ticker} strike {i.lower_threshold:g} ask "
+              f"{i.lower_ask:.2f} vs strike {i.upper_threshold:g} bid "
+              f"{i.upper_bid:.2f} -- {c(i.gross_edge)} gross, {c(i.fee)} fee, "
+              f"{c(i.net_edge)} net")
+    print(f"  {lad.negative_mass_gross} adjacent pairs with negative implied "
+          f"mass at mids ({lad.negative_mass_net} beyond two legs of fee, "
+          f"total {lad.negative_mass_total:.3f} of probability)")
+    fams = ", ".join(f"{k} {v}" for k, v in
+                     sorted(lad.by_family.items(), key=lambda kv: -kv[1])[:8])
+    if fams:
+        print(f"  ladder families: {fams}")
+
+    print(f"\nfee models as of {fees_mod.FEES_AS_OF}:")
+    for m in fees_mod.FEE_MODELS.values():
+        print(f"  {m.venue}: {m.note}")
+        for cav in m.caveats:
+            print(f"    caveat: {cav}")
+    print("\nNOTE: a coherence measurement, not a trading signal. One "
+          "snapshot is an anecdote; the answer is the time series over the "
+          "whole archive: python -m pmlab.replay")
+    return 0 if ident.holds else 2
+
+
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    ap.add_argument("snapshot", nargs="?",
+                    help="path to a snapshot; default is the newest one")
+    ap.add_argument("--archive", default="archive",
+                    help="data-branch checkout to include when searching")
+    a = ap.parse_args(argv)
+    if a.snapshot:
+        return report(Path(a.snapshot))
+    paths = snapshot_paths(ROOT / "data", Path(a.archive) / "data")
+    if not paths:
+        print("no snapshots recorded yet; run record.py", file=sys.stderr)
+        return 1
+    return report(paths[-1])
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

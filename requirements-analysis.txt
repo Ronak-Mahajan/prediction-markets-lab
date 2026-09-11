@@ -1,0 +1,5 @@
+# Phase 2 replay only. record.py, settle.py, screen.py and every pmlab
+# module except the plotting step run on the standard library alone;
+# `python -m pmlab.replay --no-plots` needs nothing from this file.
+matplotlib>=3.8
+numpy>=1.26
