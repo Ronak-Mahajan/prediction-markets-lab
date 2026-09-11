@@ -1,64 +1,133 @@
 {
- "generated": "2026-09-11T18:28:34Z",
- "code_commit": "d1ec7ac786213f70e2b5c60aa23d05b5df3bc93e",
+ "generated": "2026-09-11T18:40:38Z",
+ "code_commit": "70e9b969a15bf6b9ef3cc5e9082947789119516e",
  "archive": {
   "roots": [
    "data",
    "archive/data"
   ],
-  "snapshots": 119,
+  "snapshots": 120,
   "first_snapshot": "2026-08-23T01:18:06Z",
-  "last_snapshot": "2026-09-11T15:49:03Z",
-  "days_spanned": 19.6,
+  "last_snapshot": "2026-09-11T18:27:56Z",
+  "days_spanned": 19.72,
   "schema1_snapshots": 117,
-  "schema2_snapshots": 2,
-  "identity_sha256": "74a9ab2bd0f13f8d02507298d4ce325aa97562bb51964ff40e804f0126f1c0e6",
-  "median_gap_hours": 3.38,
+  "schema2_snapshots": 3,
+  "identity_sha256": "2851127e2e32059eaf5e6b35c355dd2e72e2cacf8313678fa199da31c97e07d8",
+  "median_gap_hours": 3.33,
   "max_gap_hours": 12.64
  },
  "kalshi_identity": {
-  "books_checked_total": 1572862,
+  "books_checked_total": 1618215,
   "deviations_total": 0,
-  "books_median": 12735,
+  "books_median": 12735.5,
   "note": "no_ask == 1 - yes_bid is asserted as a data-quality invariant, not reported as a complement result; a single deviation fails the replay."
  },
  "ladders": {
-  "median_per_snapshot": 1120,
+  "median_per_snapshot": 1120.0,
   "min_per_snapshot": 848,
-  "max_per_snapshot": 3463,
-  "rungs_median_per_snapshot": 7975,
-  "rungs_total": 992800,
-  "adjacent_pairs_total": 854961,
-  "inversions_gross_total": 306,
-  "inversions_net_total": 6,
-  "snapshots_with_gross_inversion": 64,
-  "snapshots_with_net_inversion": 2,
-  "negative_mass_gross_total": 14417,
-  "negative_mass_beyond_fee_total": 6897,
-  "negative_mass_gross_median": 115,
+  "max_per_snapshot": 3476,
+  "rungs_median_per_snapshot": 7975.0,
+  "rungs_total": 1020704,
+  "adjacent_pairs_total": 879367,
+  "inversions_gross_total": 303,
+  "inversions_net_total": 3,
+  "snapshots_with_gross_inversion": 65,
+  "snapshots_with_net_inversion": 3,
+  "negative_mass_gross_total": 15192,
+  "negative_mass_beyond_fee_total": 7180,
+  "negative_mass_gross_median": 115.5,
   "worst_gross_inversion": {
-   "snapshot": "2026-09-11T15:39:09Z",
-   "event_ticker": "KXSTARSHIPSPACE-26",
-   "lower_ticker": "KXSTARSHIPSPACE-26-5.0",
-   "upper_ticker": "KXSTARSHIPSPACE-26-6.0",
-   "lower_threshold": 5.0,
-   "upper_threshold": 6.0,
-   "lower_ask": 0.5,
-   "upper_bid": 0.96,
-   "gross_edge_cents": 46.0,
-   "fee_cents": 3.0,
-   "net_edge_cents": 43.0
+   "snapshot": "2026-08-26T09:05:55Z",
+   "event_ticker": "KXFEDFUNDSYEAR-32JAN01",
+   "lower_ticker": "KXFEDFUNDSYEAR-32JAN01-T2.25",
+   "upper_ticker": "KXFEDFUNDSYEAR-32JAN01-T2.50",
+   "lower_threshold": 2.25,
+   "upper_threshold": 2.5,
+   "lower_ask": 0.62,
+   "upper_bid": 0.65,
+   "gross_edge_cents": 3.0,
+   "fee_cents": 4.0,
+   "net_edge_cents": -1.0
   },
   "worst_net_inversion": {
-   "snapshot": "2026-09-11T15:39:09Z",
-   "event_ticker": "KXSTARSHIPSPACE-26",
-   "gross_edge_cents": 46.0,
-   "net_edge_cents": 43.0
-  }
+   "snapshot": "2026-09-11T18:27:56Z",
+   "event_ticker": "KXINXMINY-01JAN2027",
+   "gross_edge_cents": 3.0,
+   "net_edge_cents": 1.0
+  },
+  "by_recorder": {
+   "schema1": {
+    "snapshots": 117,
+    "adjacent_pairs": 804708,
+    "inversions_gross": 291,
+    "inversions_net": 0
+   },
+   "schema2": {
+    "snapshots": 3,
+    "adjacent_pairs": 74659,
+    "inversions_gross": 12,
+    "inversions_net": 3
+   }
+  },
+  "net_inversion_events": 1,
+  "net_inversion_event_tickers": [
+   "KXINXMINY-01JAN2027"
+  ],
+  "inversion_events": 26,
+  "top_inversion_events": [
+   {
+    "event_ticker": "KXFEDFUNDSYEAR-32JAN01",
+    "inversions": 89
+   },
+   {
+    "event_ticker": "KXFEDFUNDSYEAR-37JAN01",
+    "inversions": 52
+   },
+   {
+    "event_ticker": "KXFEDFUNDSYEAR-34JAN01",
+    "inversions": 33
+   },
+   {
+    "event_ticker": "KXUSCPIYEAR-30FEB01",
+    "inversions": 24
+   },
+   {
+    "event_ticker": "KXFEDFUNDSYEAR-31JAN01",
+    "inversions": 19
+   },
+   {
+    "event_ticker": "KXFEDFUNDSYEAR-33JAN01",
+    "inversions": 19
+   },
+   {
+    "event_ticker": "KXFEDFUNDSYEAR-35JAN01",
+    "inversions": 17
+   },
+   {
+    "event_ticker": "KXFEDFUNDSYEAR-36JAN01",
+    "inversions": 10
+   },
+   {
+    "event_ticker": "KXLFPRATEEOY-33JAN07",
+    "inversions": 5
+   },
+   {
+    "event_ticker": "KXMIDTERMMOV-MO06R",
+    "inversions": 5
+   },
+   {
+    "event_ticker": "KXMIDTERMMOV-TN04R",
+    "inversions": 5
+   },
+   {
+    "event_ticker": "KXFEDFUNDSYEAR-28JAN01",
+    "inversions": 4
+   }
+  ]
  },
  "polymarket_complement": {
-  "pairs_median_per_snapshot": 942,
-  "two_sided_median_per_snapshot": 890,
+  "pairs_median_per_snapshot": 942.0,
+  "two_sided_median_per_snapshot": 889.0,
   "crossed_books_total": 0,
   "gross_total": 43,
   "net_total": 43,
@@ -66,8 +135,8 @@
   "gross_string_sorted_era": 43,
   "gross_numeric_era": 0,
   "snapshots_string_sorted_era": 68,
-  "snapshots_numeric_era": 51,
-  "pairs_total": 111386,
+  "snapshots_numeric_era": 52,
+  "pairs_total": 112273,
   "worst": {
    "snapshot": "2026-08-27T09:57:38Z",
    "market_id": "3597573",
@@ -84,20 +153,20 @@
   "note": "Screened on the venue's quoted outcome-price pair, not on two asks: the complementary token's book is not in this archive (a recorder gap). A violation is an incoherent quote, not a demonstrated trade."
  },
  "predictit_complement": {
-  "pairs_median_per_snapshot": 495,
-  "pairs_total": 58197,
+  "pairs_median_per_snapshot": 495.0,
+  "pairs_total": 58693,
   "gross_total": 0,
   "net_total": 0,
   "snapshots_with_violation": 0,
   "worst": null
  },
  "buckets": {
-  "screened_median_per_snapshot": 228,
-  "screened_total": 28008,
-  "candidates_gross_median": 20,
-  "candidates_net_median": 8,
-  "candidates_gross_total": 2567,
-  "candidates_net_total": 1025,
+  "screened_median_per_snapshot": 228.0,
+  "screened_total": 28974,
+  "candidates_gross_median": 20.0,
+  "candidates_net_median": 8.0,
+  "candidates_gross_total": 2650,
+  "candidates_net_total": 1074,
   "worst": {
    "snapshot": "2026-09-11T15:39:09Z",
    "event_ticker": "KXNEXTTEAMNFL-26BSOR",
@@ -111,63 +180,63 @@
   "recurring_candidates": [
    {
     "event_ticker": "KXMOLDOVAPRES-28",
-    "snapshots": 119
+    "snapshots": 120
    },
    {
     "event_ticker": "KXNEWPOPE-70",
-    "snapshots": 119
+    "snapshots": 120
    },
    {
     "event_ticker": "KXNEXTSTATE-29",
-    "snapshots": 119
+    "snapshots": 120
    },
    {
     "event_ticker": "KXPRESMATCHUP-28NOV07",
-    "snapshots": 119
+    "snapshots": 120
    },
    {
     "event_ticker": "KXSENATENYD-28",
-    "snapshots": 119
+    "snapshots": 120
    },
    {
     "event_ticker": "KXSTATE51-29",
-    "snapshots": 119
+    "snapshots": 120
    },
    {
     "event_ticker": "KXTRUMPAGCOUNT-29",
-    "snapshots": 119
+    "snapshots": 120
    },
    {
     "event_ticker": "KXVPRESNOMR-28",
-    "snapshots": 119
+    "snapshots": 120
    },
    {
     "event_ticker": "KXNEXTDEPUTYAG-28JAN01",
-    "snapshots": 118
+    "snapshots": 119
    },
    {
     "event_ticker": "KXPRESTAIWAN-28",
-    "snapshots": 118
+    "snapshots": 119
    },
    {
     "event_ticker": "KXLONDONMAYOR-28MAY01",
-    "snapshots": 117
+    "snapshots": 118
    },
    {
     "event_ticker": "KXNEWROLEGS-35DEC",
-    "snapshots": 116
+    "snapshots": 117
    },
    {
     "event_ticker": "KXPRESNOMG-28",
-    "snapshots": 116
+    "snapshots": 117
    },
    {
     "event_ticker": "KXPRESTURKEYR1-28",
-    "snapshots": 115
+    "snapshots": 116
    },
    {
     "event_ticker": "KXDTICKET-28NOV07",
-    "snapshots": 91
+    "snapshots": 92
    }
   ]
  },

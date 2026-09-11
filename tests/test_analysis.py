@@ -211,13 +211,14 @@ def test_a_wide_inversion_does_survive_the_fee():
 
 
 def test_structured_strike_fields_are_preferred_over_titles():
+    """The strike comes from the venue even when no title regex matches."""
     ev = "KXSTRUCT-26"
     rows = [
-        kmarket(f"{ev}-A", ev, 0.70, 0.72, sub_title="nonsense",
+        kmarket(f"{ev}-A", ev, 0.70, 0.72, sub_title="stays under 100 all year",
                 strike_type="greater", floor_strike=100.0),
-        kmarket(f"{ev}-B", ev, 0.50, 0.52, sub_title="nonsense",
+        kmarket(f"{ev}-B", ev, 0.50, 0.52, sub_title="stays under 110 all year",
                 strike_type="greater", floor_strike=110.0),
-        kmarket(f"{ev}-C", ev, 0.30, 0.32, sub_title="nonsense",
+        kmarket(f"{ev}-C", ev, 0.30, 0.32, sub_title="stays under 120 all year",
                 strike_type="greater", floor_strike=120.0),
     ]
     lads = ladders.build_ladders(rows)
@@ -226,11 +227,55 @@ def test_structured_strike_fields_are_preferred_over_titles():
     assert [r.threshold for r in lads[0].rungs] == [100.0, 110.0, 120.0]
 
 
+def test_two_opposite_ladders_in_one_event_do_not_merge():
+    """KXNFLSPREAD lists both teams' spreads as strike_type="greater" in one
+    event. Merging them invented a 35c "arbitrage" out of two markets that
+    can both settle YES."""
+    ev = "KXNFLSPREAD-26SEP13ATLPIT"
+    rows = [kmarket(f"{ev}-PIT{i}", ev, b, b + 0.01, strike_type="greater",
+                    floor_strike=s,
+                    sub_title=f"Pittsburgh wins by over {s} points")
+            for i, (s, b) in enumerate(((2.5, 0.65), (4.5, 0.53), (6.5, 0.47)))]
+    rows += [kmarket(f"{ev}-ATL{i}", ev, b, b + 0.01, strike_type="greater",
+                     floor_strike=s,
+                     sub_title=f"Atlanta wins by over {s} points")
+             for i, (s, b) in enumerate(((1.5, 0.28), (5.5, 0.18), (9.5, 0.10)))]
+    lads = ladders.build_ladders(rows)
+    assert len(lads) == 2
+    assert {lad.shape for lad in lads} == {
+        "pittsburgh wins by over # points", "atlanta wins by over # points"}
+    assert ladders.screen_ladders(rows).inversions_gross == 0
+
+
+def test_equality_buckets_wearing_a_less_strike_are_refused():
+    """KXSTARSHIPSPACE-26 lists "exactly 5", "exactly 6" ... as
+    strike_type="less" with floor_strike == cap_strike -- structurally
+    identical to a real "6,300 or below" CDF rung. Only the sub-title can
+    tell them apart, so a bare-number sub-title is not a rung."""
+    ev = "KXSTARSHIPSPACE-26"
+    rows = [kmarket(f"{ev}-{n}.0", ev, b, a, strike_type="less",
+                    floor_strike=float(n), cap_strike=float(n),
+                    sub_title=str(n))
+            for n, b, a in ((3, 0.08, 0.11), (4, 0.36, 0.40),
+                            (5, 0.51, 0.55), (6, 0.01, 0.04))]
+    assert ladders.build_ladders(rows) == []
+    assert ladders.screen_ladders(rows).inversions_gross == 0
+
+    # The same structural shape WITH a directional sub-title is a real rung.
+    cdf = [kmarket(f"KXINXMINY-{n}", "KXINXMINY-01JAN2027", b, a,
+                   strike_type="less", floor_strike=float(n),
+                   cap_strike=float(n), sub_title=f"{n:,} or below")
+           for n, b, a in ((5900, 0.088, 0.089), (6000, 0.128, 0.129),
+                           (6100, 0.086, 0.098), (6200, 0.096, 0.105))]
+    lads = ladders.build_ladders(cdf)
+    assert len(lads) == 1 and len(lads[0].rungs) == 4
+
+
 def test_less_strikes_are_flipped_into_p_ge():
     """A "less" rung quotes P(<= cap); the complement interval flips sides."""
     ev = "KXLESS-26"
     rows = [kmarket(f"{ev}-{i}", ev, 0.20, 0.24, strike_type="less",
-                    cap_strike=float(s))
+                    cap_strike=float(s), sub_title=f"{s} or below")
             for i, s in enumerate((10, 20, 30))]
     lads = ladders.build_ladders(rows)
     assert len(lads) == 1
@@ -239,7 +284,8 @@ def test_less_strikes_are_flipped_into_p_ge():
     assert (r.bid, r.ask) == pytest.approx((0.76, 0.80))
     # and a "less" ladder never merges with a "greater" one on the same event
     rows += [kmarket(f"{ev}-G{i}", ev, 0.5, 0.52, strike_type="greater",
-                     floor_strike=float(s)) for i, s in enumerate((10, 20, 30))]
+                     floor_strike=float(s), sub_title=f"Above {s}")
+             for i, s in enumerate((10, 20, 30))]
     assert {lad.unit for lad in ladders.build_ladders(rows)} == \
         {"strike:less", "strike:greater"}
 

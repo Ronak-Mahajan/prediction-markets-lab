@@ -105,6 +105,57 @@ PARTY_MARGIN = re.compile(rf"^(?P<party>[A-Za-z][A-Za-z ]*?),?\s+{_NUM}\+\s*pts$
 #: A bare "36+ pts" with no party named.
 PLAIN_PLUS_PTS = re.compile(rf"^{_NUM}\+\s*pts$", re.I)
 
+_NUMBER_TOKEN = re.compile(r"[\d][\d,]*(?:\.\d+)?")
+#: A scale word attached to the number, so "Above 900K" and "Above 1M" have
+#: the same shape. The trailing word boundary matters: without it the "b"
+#: alternative eats the first letter of "# below" and every "or below" rung
+#: in the archive silently becomes a different curve.
+_SCALE_SUFFIX = re.compile(r"#\s*(?:k|m|bn|b|thousand|million|billion)\b", re.I)
+
+
+def title_shape(sub_title: str) -> str:
+    """The sub-title with its number removed: what the rung *says* it is.
+
+    This is the guard against grouping markets that share an event and a
+    ``strike_type`` but are not rungs of one curve. Two real cases from the
+    recorder-v2 catalog, both of which produced false "arbitrages" before
+    this existed:
+
+    * ``KXNFLSPREAD-26SEP13ATLPIT`` lists "Pittsburgh wins by over 5.5
+      points" and "Atlanta wins by over 9.5 points" side by side, every one
+      of them ``strike_type="greater"``. They are two opposite ladders on
+      one game; monotonicity across them is meaningless, and reading it as
+      a violation manufactured a 35c edge out of nothing.
+    * ``KXSTARSHIPSPACE-26`` lists "exactly 5", "exactly 6", ... as
+      ``strike_type="less"`` with ``floor_strike == cap_strike``, which is
+      byte-for-byte the shape ``KXINXMINY-01JAN2027`` uses for a genuine
+      "6,300 or below" CDF rung. The structured fields cannot tell an
+      equality bucket from a cumulative one; the sub-title can, so a rung
+      whose sub-title is a bare number is refused.
+
+    Scale suffixes are normalised away, so "Above 900K" and "Above 1M" stay
+    two rungs of one curve, while "Above 5%" never joins "Above 5".
+
+    >>> title_shape("Pittsburgh wins by over 5.5 points")
+    'pittsburgh wins by over # points'
+    >>> title_shape("Above 900K") == title_shape("Above 1M")
+    True
+    >>> title_shape("5")
+    '#'
+    """
+    s = _NUMBER_TOKEN.sub("#", (sub_title or "").strip().lower())
+    s = _SCALE_SUFFIX.sub("#", s)
+    return re.sub(r"\s+", " ", s).strip()
+
+
+def is_directional_shape(shape: str) -> bool:
+    """A rung has to say which side of the strike it pays on.
+
+    A bare "#" is an equality bucket ("exactly 5"), not a point on a
+    cumulative curve, whatever ``strike_type`` the venue attaches to it.
+    """
+    return any(ch.isalpha() for ch in shape)
+
 
 def parse_title_threshold(sub_title: str) -> tuple[float, str, str] | None:
     """``yes_sub_title`` -> (threshold, family, unit) or None.
@@ -161,7 +212,10 @@ class Rung:
 class Ladder:
     """Rungs of one event that quote the same variable in the same unit.
 
-    The grouping key is ``(event_ticker, unit, source)``. For structured
+    The grouping key is ``(event_ticker, unit, source, shape)``, where
+    ``shape`` is the sub-title with its number removed (see
+    :func:`title_shape`) -- without it, two opposite ladders that share an
+    event and a ``strike_type`` merge into one fake curve. For structured
     rungs ``unit`` is the venue's ``strike_type``, so a "greater" ladder and
     a "less" ladder on the same event stay apart exactly as the spec asks.
     For title-parsed rungs ``unit`` is the unit *class* -- scalar, percent,
@@ -184,9 +238,11 @@ class Ladder:
             return self.unit
         return max(sorted(self.families), key=lambda k: self.families[k])
 
+    shape: str = ""
+
     @property
-    def key(self) -> tuple[str, str, str]:
-        return (self.event_ticker, self.unit, self.source)
+    def key(self) -> tuple[str, str, str, str]:
+        return (self.event_ticker, self.unit, self.source, self.shape)
 
 
 @dataclass(frozen=True)
@@ -260,10 +316,13 @@ def build_ladders(rows: list[dict], min_rungs: int = 3) -> list[Ladder]:
         ev = row.get("event_ticker")
         if not ev:
             continue
+        shape = title_shape(row.get("yes_sub_title") or "")
         s = _structured_rung(row)
-        if s is not None:
+        if s is not None and is_directional_shape(shape):
             threshold, unit, flipped = s
             source, family = "strike", unit
+        elif s is not None:
+            continue          # an equality bucket wearing a ladder's strike_type
         else:
             t = parse_title_threshold(row.get("yes_sub_title") or "")
             if t is None:
@@ -272,12 +331,12 @@ def build_ladders(rows: list[dict], min_rungs: int = 3) -> list[Ladder]:
             source, flipped = "title", False
         if flipped:                        # P(>= cap) = 1 - P(<= cap)
             bid, ask = 1.0 - ask, 1.0 - bid
-        key = (ev, unit, source)
+        key = (ev, unit, source, shape)
         lad = groups.get(key)
         if lad is None:
             lad = groups[key] = Ladder(event_ticker=ev,
                                        series_ticker=row.get("series_ticker"),
-                                       unit=unit, source=source)
+                                       unit=unit, source=source, shape=shape)
         lad.families[family] = lad.families.get(family, 0) + 1
         lad.rungs.append(Rung(ticker=row.get("ticker") or "",
                               threshold=threshold, bid=bid, ask=ask,
@@ -375,6 +434,15 @@ class LadderReport:
     worst_net_inversion: Inversion | None = None
     worst_negative_mass: NegativeMass | None = None
     by_family: dict[str, int] = field(default_factory=dict)
+    #: Event tickers of the inversions that survived the fee, one entry per
+    #: surviving inversion. Short by construction, and the only list in this
+    #: report a reader should go and look at by hand.
+    net_inversions: list[str] = field(default_factory=list)
+    #: {event_ticker: gross inversions}. Where the incoherence lives matters
+    #: more than how much of it there is: a count spread over every event is
+    #: noise in the quotes, a count concentrated in a handful of long-dated
+    #: series is a statement about which ladders nobody is minding.
+    inversions_by_event: dict[str, int] = field(default_factory=dict)
 
     def as_dict(self) -> dict:
         def inv(i: Inversion | None) -> dict | None:
@@ -409,6 +477,7 @@ class LadderReport:
             "worst_net_inversion": inv(self.worst_net_inversion),
             "worst_negative_mass": nm(self.worst_negative_mass),
             "by_family": dict(sorted(self.by_family.items())),
+            "inversions_by_event": dict(sorted(self.inversions_by_event.items())),
         }
 
 
@@ -426,10 +495,13 @@ def screen_ladders(rows: list[dict], min_rungs: int = 3) -> LadderReport:
         rep.by_family[lad.family] = rep.by_family.get(lad.family, 0) + 1
         for i in ladder_inversions(lad):
             rep.inversions_gross += 1
+            rep.inversions_by_event[i.event_ticker] = (
+                rep.inversions_by_event.get(i.event_ticker, 0) + 1)
             if rep.worst_inversion is None or i.gross_edge > rep.worst_inversion.gross_edge:
                 rep.worst_inversion = i
             if i.net_edge > 0:
                 rep.inversions_net += 1
+                rep.net_inversions.append(i.event_ticker)
                 if (rep.worst_net_inversion is None
                         or i.net_edge > rep.worst_net_inversion.net_edge):
                     rep.worst_net_inversion = i
