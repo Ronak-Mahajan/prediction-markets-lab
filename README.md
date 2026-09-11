@@ -309,9 +309,9 @@ scored. A one-sided book is reported unscored, because its mid is not a
 price. Below three settlement-day blocks no bootstrap interval is
 reported at all, because resampling two blocks describes the block count
 rather than the data. Every refusal is counted in the output rather than
-quietly dropped, and each table carries a `blocks` column next to its `n`
-- a thousand forecasts spread over four settlement days is four
-observations of the world wearing a large `n`. A wide two-sided book is
+quietly dropped, and each table carries a `blocks` column next to its
+`n`, because a thousand forecasts spread over four settlement days is
+four observations of the world wearing a large `n`. A wide two-sided book is
 *not* refused, but every favourite-longshot bin reports its median spread,
 because a nominal ask sitting on an empty book is a two-sided quote and
 still not a price. PredictIt is joined and reported but never enters a
