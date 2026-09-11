@@ -144,7 +144,7 @@ at a one-cent contract is fourteen times too little; that single
 correction is the whole difference between "a one-cent inversion
 survives" and "it does not".
 
-Over the nineteen days of v1 data the answer is a clean negative: not one
+Over the recorder-v1 slice the answer is a clean negative: not one
 of the 291 <!-- results:ladders.by_recorder.schema1.inversions_gross -->
 gross inversions was wider than three cents, against the two to four
 cents of fee the two legs cost (a taker leg can never cost more than two
@@ -155,8 +155,9 @@ in 26 <!-- results:ladders.inversion_events --> events, overwhelmingly the
 long-dated `KXFEDFUNDSYEAR-3x` and `KXUSCPIYEAR` ladders that settle years
 out and that nobody is minding.
 
-The v2 slice is three snapshots over three hours and is reported as the
-preliminary thing it is, but it is already more interesting:
+The v2 slice is 3 <!-- results:ladders.by_recorder.schema2.snapshots -->
+snapshots so far and is reported as the preliminary thing it is, but it is
+already more interesting:
 3 <!-- results:ladders.inversions_net_total --> inversions survive the fee,
 all in 1 <!-- results:ladders.net_inversion_events --> event —
 `KXINXMINY-01JAN2027`, the "minimum S&P 500 value by Jan 1 2027" ladder,
@@ -222,13 +223,20 @@ else" bucket is the missing mass.
 
 ### The one-line answer, dated 2026-09-11
 
-Over nineteen days of recorder-v1 quotes — 804,708 adjacent strike pairs,
-58,693 PredictIt pairs, 112,273 Polymarket pairs, 28,974 screened
+Over 19.7 <!-- results:archive.days_spanned --> days and
+120 <!-- results:archive.snapshots --> snapshots —
+879,367 <!-- results:ladders.adjacent_pairs_total --> adjacent strike
+pairs, 58,693 <!-- results:predictit_complement.pairs_total --> PredictIt
+pairs, 112,273 <!-- results:polymarket_complement.pairs_total -->
+Polymarket pairs, 28,974 <!-- results:buckets.screened_total --> screened
 bucket-sum events — honest fee accounting erases every coherence violation
-the screens can find. The only surviving exception appeared the moment the
-recorder stopped truncating the catalog: one S&P-500-minimum ladder,
-inverted by 0.4c to 1.0c net of fee, in all three v2 snapshots so far.
-Both halves of that sentence get published at the same size.
+the screens can find, with one exception, and the exception appeared the
+moment the recorder stopped truncating the catalog:
+`KXINXMINY-01JAN2027`, the S&P-500-minimum ladder, inverted by up to
+1.0 <!-- results:ladders.worst_net_inversion.net_edge_cents --> cent net
+of fee in all 3 <!-- results:ladders.by_recorder.schema2.snapshots -->
+recorder-v2 snapshots recorded so far. Both halves of that sentence get
+published at the same size.
 
 ### Still to come in Phase 2
 
