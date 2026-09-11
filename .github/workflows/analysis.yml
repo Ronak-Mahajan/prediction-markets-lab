@@ -7,6 +7,7 @@ on:
     branches: ["rebuild/**", "fix/**"]
     paths:
       - pmlab/**
+      - events.yaml
       - screen.py
       - scripts/check_readme.py
       - README.md
@@ -75,10 +76,15 @@ jobs:
           path: archive
           fetch-depth: 1
 
+      # settle.py writes archive/settlements/<venue>/*.jsonl on the data
+      # branch, so the checkout above is also what makes the calibration
+      # tables possible. Zero settlements is a supported state: the
+      # calibration and basis sections then render an empty table with the
+      # reason and the job stays green.
       - name: replay the archive
         run: |
           set -o pipefail
-          python -m pmlab.replay --roots data archive/data 2>&1 | tee -a ci.log
+          python -m pmlab.replay --roots data archive/data             --settlements archive/settlements settlements             --events events.yaml 2>&1 | tee -a ci.log
           exit ${PIPESTATUS[0]}
 
       # Sync, then verify. --write repairs numbers in README.md that the fresh
