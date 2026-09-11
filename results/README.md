@@ -1,6 +1,6 @@
 # Coherence over the archive
 
-Generated 2026-09-11T18:43:17Z by `python -m pmlab.replay` at commit `f1767fdc33c3`.
+Generated 2026-09-11T18:47:41Z by `python -m pmlab.replay` at commit `645eccaf6211`.
 
 **Archive replayed:** 120 snapshots, 2026-08-23T01:18:06Z to 2026-09-11T18:27:56Z (19.7 days), realised cadence median 3.3 h / max 12.6 h.  
 **Archive identity (sha256 of the blob list):** `2851127e2e32059eaf5e6b35c355dd2e72e2cacf8313678fa199da31c97e07d8`
@@ -11,12 +11,14 @@ Every count below is produced twice: **gross**, and **net** of the venue's own f
 
 Across 120 snapshots and 19.7 days, 303 gross ladder monotonicity inversions were found and 3 survived the fee model; 0 PredictIt and 43 Polymarket complement violations gross, 0 and 43 net; a median 20 bucket-sum candidates per snapshot gross and 8 net, all open-universe events. The Kalshi complement identity held on 1,618,215 of 1,618,215 two-sided books.
 
+Every inversion that survived the fee is in 1 event(s): `KXINXMINY-01JAN2027`. Those are the rows to go and read by hand; everything else in this file is a count.
+
 ## Kalshi ladders
 
 | quantity | value |
 |---|---|
 | ladders per snapshot (median) | 1,120 |
-| ladders per snapshot (min-max) | 848-3,476 |
+| ladders per snapshot (min-max, across both recorders) | 848-3,476 |
 | rungs per snapshot (median) | 7,975 |
 | adjacent strike pairs tested (total) | 879,367 |
 | monotonicity inversions, gross (total) | 303 |
