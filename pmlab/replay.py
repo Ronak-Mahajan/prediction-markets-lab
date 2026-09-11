@@ -469,13 +469,23 @@ def render_results_readme(s: dict) -> str:
       f"{_fmt(ki['books_checked_total'] - ki['deviations_total'])} of "
       f"{_fmt(ki['books_checked_total'])} two-sided books.")
     w("")
+    if lad.get("net_inversion_event_tickers"):
+        w("Every inversion that survived the fee is in "
+          f"{_fmt(lad['net_inversion_events'])} event(s): "
+          + ", ".join(f"`{t}`" for t in lad["net_inversion_event_tickers"])
+          + ". Those are the rows to go and read by hand; everything else "
+            "in this file is a count.")
+        w("")
+    else:
+        w("No inversion anywhere in the archive survived the fee model.")
+        w("")
     w("## Kalshi ladders")
     w("")
     w("| quantity | value |")
     w("|---|---|")
     w(f"| ladders per snapshot (median) | {_fmt(lad['median_per_snapshot'])} |")
-    w(f"| ladders per snapshot (min-max) | {_fmt(lad['min_per_snapshot'])}"
-      f"-{_fmt(lad['max_per_snapshot'])} |")
+    w(f"| ladders per snapshot (min-max, across both recorders) "
+      f"| {_fmt(lad['min_per_snapshot'])}-{_fmt(lad['max_per_snapshot'])} |")
     w(f"| rungs per snapshot (median) | {_fmt(lad['rungs_median_per_snapshot'])} |")
     w(f"| adjacent strike pairs tested (total) | {_fmt(lad['adjacent_pairs_total'])} |")
     w(f"| monotonicity inversions, gross (total) | {_fmt(lad['inversions_gross_total'])} |")
