@@ -116,21 +116,21 @@ disagrees with `results/summary.json` — which is exactly how "44 ladders"
 went stale unnoticed. Every figure below therefore carries the archive it
 was measured on.
 
-**Archive replayed:** 117 <!-- results:archive.snapshots --> snapshots,
-2026-08-23 to 2026-09-11, 19.1 <!-- results:archive.days_spanned -->
+**Archive replayed:** 119 <!-- results:archive.snapshots --> snapshots,
+2026-08-23 to 2026-09-11, 19.6 <!-- results:archive.days_spanned -->
 days, realised cadence median
 3.4 <!-- results:archive.median_gap_hours --> h.
 
 **Ladders.** A median of
 1,120 <!-- results:ladders.median_per_snapshot --> threshold ladders per
-snapshot (7,974 <!-- results:ladders.rungs_median_per_snapshot --> rungs)
-give 804,708 <!-- results:ladders.adjacent_pairs_total --> adjacent
+snapshot (7,975 <!-- results:ladders.rungs_median_per_snapshot --> rungs)
+give 854,961 <!-- results:ladders.adjacent_pairs_total --> adjacent
 strike pairs tested across the archive.
-291 <!-- results:ladders.inversions_gross_total --> of them are gross
+306 <!-- results:ladders.inversions_gross_total --> of them are gross
 monotonicity inversions — a higher strike bid over a lower strike's ask —
-spread over 62 <!-- results:ladders.snapshots_with_gross_inversion --> of
-the 117 <!-- results:archive.snapshots --> snapshots.
-**0 <!-- results:ladders.inversions_net_total --> survive the venue's
+spread over 64 <!-- results:ladders.snapshots_with_gross_inversion --> of
+the 119 <!-- results:archive.snapshots --> snapshots.
+**6 <!-- results:ladders.inversions_net_total --> survive the venue's
 taker fee.** The widest gross edge in the whole archive was 3.0c, on a
 Fed-funds ladder, against 4.0c of fee on the two legs. The fee model is
 the published formula *with the published rounding* — ceil to the cent
@@ -142,27 +142,27 @@ survives" and "it does not".
 
 At mids rather than at the touch, the same ladders imply negative
 probability mass between adjacent strikes
-13,042 <!-- results:ladders.negative_mass_gross_total --> times. That is
+14,417 <!-- results:ladders.negative_mass_gross_total --> times. That is
 a statement about where quotes are marked, not a trade, and the two
 numbers are kept apart on purpose.
 
 **Complement.** Kalshi is not screened, because it cannot fire there:
 `no_ask == 1 - yes_bid` held on
-1,480,283 <!-- results:kalshi_identity.books_checked_total --> of
-1,480,283 <!-- results:kalshi_identity.books_checked_total --> two-sided
+1,572,862 <!-- results:kalshi_identity.books_checked_total --> of
+1,572,862 <!-- results:kalshi_identity.books_checked_total --> two-sided
 books, 0 <!-- results:kalshi_identity.deviations_total --> deviations, so
 YES ask + NO ask is 1 + spread by construction. The replay asserts the
 identity and fails if it ever breaks. Where the screen can fire:
-57,207 <!-- results:predictit_complement.pairs_total --> PredictIt
+58,197 <!-- results:predictit_complement.pairs_total --> PredictIt
 YES/NO ask pairs give
 0 <!-- results:predictit_complement.gross_total --> violations gross, and
-109,611 <!-- results:polymarket_complement.pairs_total --> Polymarket
+111,386 <!-- results:polymarket_complement.pairs_total --> Polymarket
 quoted outcome pairs give
 43 <!-- results:polymarket_complement.gross_total --> — all
 43 <!-- results:polymarket_complement.gross_string_sorted_era --> of them
 inside the string-sorted era, and
 0 <!-- results:polymarket_complement.gross_numeric_era --> in the
-49 <!-- results:polymarket_complement.snapshots_numeric_era --> clean
+51 <!-- results:polymarket_complement.snapshots_numeric_era --> clean
 snapshots. The incoherent quotes are in the rows the recorder's broken
 sort surfaced, which makes that a finding about this repo rather than
 about Polymarket.
@@ -173,14 +173,14 @@ exclusive events per snapshot are fully quoted;
 20 <!-- results:buckets.candidates_gross_median --> of them sum below a
 dollar gross and 8 <!-- results:buckets.candidates_net_median --> net of
 fees. The same tickers recur in all
-117 <!-- results:archive.snapshots --> snapshots — next pope, 51st state,
+119 <!-- results:archive.snapshots --> snapshots — next pope, 51st state,
 party nominations, Moldovan president — which is the open-universe trap
 this screen exists to name rather than fall into: the missing "someone
 else" bucket is the missing mass.
 
 **The one-line answer, dated 2026-09-11.** Over
-117 <!-- results:archive.snapshots --> snapshots and
-19.1 <!-- results:archive.days_spanned --> days of four venues'
+119 <!-- results:archive.snapshots --> snapshots and
+19.6 <!-- results:archive.days_spanned --> days of four venues'
 top-of-book quotes, honest fee accounting erases every coherence
 violation the screens can find: 291 gross ladder inversions go to zero,
 the only complement violations are in known-bad recorder output, and the

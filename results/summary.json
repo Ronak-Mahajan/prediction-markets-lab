@@ -1,58 +1,64 @@
 {
- "generated": "2026-09-11T18:23:38Z",
- "code_commit": "545c391b033bb40b6e1f4154e99d10aab524e2cb",
+ "generated": "2026-09-11T18:28:34Z",
+ "code_commit": "d1ec7ac786213f70e2b5c60aa23d05b5df3bc93e",
  "archive": {
   "roots": [
-   "data"
+   "data",
+   "archive/data"
   ],
-  "snapshots": 117,
+  "snapshots": 119,
   "first_snapshot": "2026-08-23T01:18:06Z",
-  "last_snapshot": "2026-09-11T04:48:38Z",
-  "days_spanned": 19.15,
+  "last_snapshot": "2026-09-11T15:49:03Z",
+  "days_spanned": 19.6,
   "schema1_snapshots": 117,
-  "schema2_snapshots": 0,
-  "identity_sha256": "c2a0e6d39e42f2d58eb4625cab10833bbcd0f18281dfc97a0775c5b40a3e812c",
+  "schema2_snapshots": 2,
+  "identity_sha256": "74a9ab2bd0f13f8d02507298d4ce325aa97562bb51964ff40e804f0126f1c0e6",
   "median_gap_hours": 3.38,
   "max_gap_hours": 12.64
  },
  "kalshi_identity": {
-  "books_checked_total": 1480283,
+  "books_checked_total": 1572862,
   "deviations_total": 0,
-  "books_median": 12730,
+  "books_median": 12735,
   "note": "no_ask == 1 - yes_bid is asserted as a data-quality invariant, not reported as a complement result; a single deviation fails the replay."
  },
  "ladders": {
   "median_per_snapshot": 1120,
   "min_per_snapshot": 848,
-  "max_per_snapshot": 1163,
-  "rungs_median_per_snapshot": 7974,
-  "rungs_total": 935626,
-  "adjacent_pairs_total": 804708,
-  "inversions_gross_total": 291,
-  "inversions_net_total": 0,
-  "snapshots_with_gross_inversion": 62,
-  "snapshots_with_net_inversion": 0,
-  "negative_mass_gross_total": 13042,
-  "negative_mass_beyond_fee_total": 6309,
+  "max_per_snapshot": 3463,
+  "rungs_median_per_snapshot": 7975,
+  "rungs_total": 992800,
+  "adjacent_pairs_total": 854961,
+  "inversions_gross_total": 306,
+  "inversions_net_total": 6,
+  "snapshots_with_gross_inversion": 64,
+  "snapshots_with_net_inversion": 2,
+  "negative_mass_gross_total": 14417,
+  "negative_mass_beyond_fee_total": 6897,
   "negative_mass_gross_median": 115,
   "worst_gross_inversion": {
-   "snapshot": "2026-08-26T09:05:55Z",
-   "event_ticker": "KXFEDFUNDSYEAR-32JAN01",
-   "lower_ticker": "KXFEDFUNDSYEAR-32JAN01-T2.25",
-   "upper_ticker": "KXFEDFUNDSYEAR-32JAN01-T2.50",
-   "lower_threshold": 2.25,
-   "upper_threshold": 2.5,
-   "lower_ask": 0.62,
-   "upper_bid": 0.65,
-   "gross_edge_cents": 3.0,
-   "fee_cents": 4.0,
-   "net_edge_cents": -1.0
+   "snapshot": "2026-09-11T15:39:09Z",
+   "event_ticker": "KXSTARSHIPSPACE-26",
+   "lower_ticker": "KXSTARSHIPSPACE-26-5.0",
+   "upper_ticker": "KXSTARSHIPSPACE-26-6.0",
+   "lower_threshold": 5.0,
+   "upper_threshold": 6.0,
+   "lower_ask": 0.5,
+   "upper_bid": 0.96,
+   "gross_edge_cents": 46.0,
+   "fee_cents": 3.0,
+   "net_edge_cents": 43.0
   },
-  "worst_net_inversion": null
+  "worst_net_inversion": {
+   "snapshot": "2026-09-11T15:39:09Z",
+   "event_ticker": "KXSTARSHIPSPACE-26",
+   "gross_edge_cents": 46.0,
+   "net_edge_cents": 43.0
+  }
  },
  "polymarket_complement": {
-  "pairs_median_per_snapshot": 943,
-  "two_sided_median_per_snapshot": 891,
+  "pairs_median_per_snapshot": 942,
+  "two_sided_median_per_snapshot": 890,
   "crossed_books_total": 0,
   "gross_total": 43,
   "net_total": 43,
@@ -60,8 +66,8 @@
   "gross_string_sorted_era": 43,
   "gross_numeric_era": 0,
   "snapshots_string_sorted_era": 68,
-  "snapshots_numeric_era": 49,
-  "pairs_total": 109611,
+  "snapshots_numeric_era": 51,
+  "pairs_total": 111386,
   "worst": {
    "snapshot": "2026-08-27T09:57:38Z",
    "market_id": "3597573",
@@ -78,8 +84,8 @@
   "note": "Screened on the venue's quoted outcome-price pair, not on two asks: the complementary token's book is not in this archive (a recorder gap). A violation is an incoherent quote, not a demonstrated trade."
  },
  "predictit_complement": {
-  "pairs_median_per_snapshot": 494,
-  "pairs_total": 57207,
+  "pairs_median_per_snapshot": 495,
+  "pairs_total": 58197,
   "gross_total": 0,
   "net_total": 0,
   "snapshots_with_violation": 0,
@@ -87,81 +93,81 @@
  },
  "buckets": {
   "screened_median_per_snapshot": 228,
-  "screened_total": 26111,
+  "screened_total": 28008,
   "candidates_gross_median": 20,
   "candidates_net_median": 8,
-  "candidates_gross_total": 2390,
-  "candidates_net_total": 923,
+  "candidates_gross_total": 2567,
+  "candidates_net_total": 1025,
   "worst": {
-   "snapshot": "2026-09-06T04:48:07Z",
-   "event_ticker": "KXSTATE51-29",
-   "title": "Will D.C. be the 51st U.S. state before Jan 20, 2029?",
-   "buckets": 8,
-   "ask_sum": 0.117,
-   "gross_edge_cents": 88.3,
-   "net_edge_cents": 80.3
+   "snapshot": "2026-09-11T15:39:09Z",
+   "event_ticker": "KXNEXTTEAMNFL-26BSOR",
+   "title": "Brendan Sorsby's Next Team",
+   "buckets": 5,
+   "ask_sum": 0.05,
+   "gross_edge_cents": 95.0,
+   "net_edge_cents": 90.0
   },
   "caveat": "A bucket-sum candidate is NOT an arbitrage. The venue's mutually_exclusive flag promises at most one bucket settles YES, not that the listed buckets are exhaustive; the survivors on real data are open-universe events (next pope, 51st state, party nominations) whose missing 'someone else' bucket is exactly the mass that makes the asks sum below a dollar. Read the event rules before believing any row of this table.",
   "recurring_candidates": [
    {
     "event_ticker": "KXMOLDOVAPRES-28",
-    "snapshots": 117
+    "snapshots": 119
    },
    {
     "event_ticker": "KXNEWPOPE-70",
-    "snapshots": 117
+    "snapshots": 119
    },
    {
     "event_ticker": "KXNEXTSTATE-29",
-    "snapshots": 117
+    "snapshots": 119
    },
    {
     "event_ticker": "KXPRESMATCHUP-28NOV07",
-    "snapshots": 117
+    "snapshots": 119
    },
    {
     "event_ticker": "KXSENATENYD-28",
-    "snapshots": 117
+    "snapshots": 119
    },
    {
     "event_ticker": "KXSTATE51-29",
-    "snapshots": 117
+    "snapshots": 119
    },
    {
     "event_ticker": "KXTRUMPAGCOUNT-29",
-    "snapshots": 117
+    "snapshots": 119
    },
    {
     "event_ticker": "KXVPRESNOMR-28",
-    "snapshots": 117
+    "snapshots": 119
    },
    {
     "event_ticker": "KXNEXTDEPUTYAG-28JAN01",
-    "snapshots": 116
+    "snapshots": 118
    },
    {
     "event_ticker": "KXPRESTAIWAN-28",
-    "snapshots": 116
+    "snapshots": 118
    },
    {
     "event_ticker": "KXLONDONMAYOR-28MAY01",
-    "snapshots": 115
+    "snapshots": 117
    },
    {
     "event_ticker": "KXNEWROLEGS-35DEC",
-    "snapshots": 114
+    "snapshots": 116
    },
    {
     "event_ticker": "KXPRESNOMG-28",
-    "snapshots": 114
+    "snapshots": 116
    },
    {
     "event_ticker": "KXPRESTURKEYR1-28",
-    "snapshots": 113
+    "snapshots": 115
    },
    {
     "event_ticker": "KXDTICKET-28NOV07",
-    "snapshots": 89
+    "snapshots": 91
    }
   ]
  },

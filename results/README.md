@@ -1,31 +1,31 @@
 # Coherence over the archive
 
-Generated 2026-09-11T18:23:38Z by `python -m pmlab.replay` at commit `545c391b033b`.
+Generated 2026-09-11T18:28:34Z by `python -m pmlab.replay` at commit `d1ec7ac78621`.
 
-**Archive replayed:** 117 snapshots, 2026-08-23T01:18:06Z to 2026-09-11T04:48:38Z (19.1 days), realised cadence median 3.4 h / max 12.6 h.  
-**Archive identity (sha256 of the blob list):** `c2a0e6d39e42f2d58eb4625cab10833bbcd0f18281dfc97a0775c5b40a3e812c`
+**Archive replayed:** 119 snapshots, 2026-08-23T01:18:06Z to 2026-09-11T15:49:03Z (19.6 days), realised cadence median 3.4 h / max 12.6 h.  
+**Archive identity (sha256 of the blob list):** `74a9ab2bd0f13f8d02507298d4ce325aa97562bb51964ff40e804f0126f1c0e6`
 
 Every count below is produced twice: **gross**, and **net** of the venue's own fee with the venue's own rounding. The gap between the two columns is the result.
 
 ## The one-line answer
 
-Across 117 snapshots and 19.1 days, 291 gross ladder monotonicity inversions were found and 0 survived the fee model; 0 PredictIt and 43 Polymarket complement violations gross, 0 and 43 net; a median 20 bucket-sum candidates per snapshot gross and 8 net, all open-universe events. The Kalshi complement identity held on 1,480,283 of 1,480,283 two-sided books.
+Across 119 snapshots and 19.6 days, 306 gross ladder monotonicity inversions were found and 6 survived the fee model; 0 PredictIt and 43 Polymarket complement violations gross, 0 and 43 net; a median 20 bucket-sum candidates per snapshot gross and 8 net, all open-universe events. The Kalshi complement identity held on 1,572,862 of 1,572,862 two-sided books.
 
 ## Kalshi ladders
 
 | quantity | value |
 |---|---|
 | ladders per snapshot (median) | 1,120 |
-| ladders per snapshot (min-max) | 848-1,163 |
-| rungs per snapshot (median) | 7,974 |
-| adjacent strike pairs tested (total) | 804,708 |
-| monotonicity inversions, gross (total) | 291 |
-| monotonicity inversions, net of fee (total) | 0 |
-| snapshots with any gross inversion | 62 of 117 |
-| negative implied mass at mids, gross (total) | 13,042 |
-| ... whose magnitude exceeds two legs of fee | 6,309 |
+| ladders per snapshot (min-max) | 848-3,463 |
+| rungs per snapshot (median) | 7,975 |
+| adjacent strike pairs tested (total) | 854,961 |
+| monotonicity inversions, gross (total) | 306 |
+| monotonicity inversions, net of fee (total) | 6 |
+| snapshots with any gross inversion | 64 of 119 |
+| negative implied mass at mids, gross (total) | 14,417 |
+| ... whose magnitude exceeds two legs of fee | 6,897 |
 
-Worst gross inversion: `KXFEDFUNDSYEAR-32JAN01` on 2026-08-26T09:05:55Z, strike 2.25 ask 0.62 against strike 2.5 bid 0.65 -- 3.0c gross, 4.0c of fee on the two legs, -1.0c net.
+Worst gross inversion: `KXSTARSHIPSPACE-26` on 2026-09-11T15:39:09Z, strike 5 ask 0.50 against strike 6 bid 0.96 -- 46.0c gross, 3.0c of fee on the two legs, 43.0c net.
 
 The inversion screen is at the touch and is executable by construction: sell the higher strike at its bid, buy the lower at its ask. The negative-mass screen is at mids and is **not** a trade -- it says where the quoted curve is marked impossibly, which is a wider and softer statement. The two must not be read as the same number.
 
@@ -33,15 +33,15 @@ The inversion screen is at the touch and is executable by construction: sell the
 
 | venue | pairs per snapshot (median) | gross (total) | net (total) |
 |---|---|---|---|
-| Polymarket (quoted outcome pair) | 943 | 43 | 43 |
-| PredictIt (YES/NO asks) | 494 | 0 | 0 |
+| Polymarket (quoted outcome pair) | 942 | 43 | 43 |
+| PredictIt (YES/NO asks) | 495 | 0 | 0 |
 | Kalshi | not screened | - | - |
 
-Kalshi is not screened on purpose: `no_ask == 1 - yes_bid` held on 1,480,283 of 1,480,283 two-sided books across the whole archive (0 deviations), so YES ask plus NO ask is 1 plus the spread by construction and the screen cannot fire. It is asserted as an invariant: a single deviation fails this replay.
+Kalshi is not screened on purpose: `no_ask == 1 - yes_bid` held on 1,572,862 of 1,572,862 two-sided books across the whole archive (0 deviations), so YES ask plus NO ask is 1 plus the spread by construction and the screen cannot fire. It is asserted as an invariant: a single deviation fails this replay.
 
 Screened on the venue's quoted outcome-price pair, not on two asks: the complementary token's book is not in this archive (a recorder gap). A violation is an incoherent quote, not a demonstrated trade.
 
-All 43 Polymarket violations fall in the 68 snapshots of the string-sorted era (2026-08-23 to 2026-09-01T16:44Z), when the venue served `order=liquidity` sorted as text and the recorder kept the result: thin, often already-expired rows. The 49 snapshots of the clean `liquidityNum` era carry 0. That is a statement about the recorder, not about the venue's quotes.
+All 43 Polymarket violations fall in the 68 snapshots of the string-sorted era (2026-08-23 to 2026-09-01T16:44Z), when the venue served `order=liquidity` sorted as text and the recorder kept the result: thin, often already-expired rows. The 51 snapshots of the clean `liquidityNum` era carry 0. That is a statement about the recorder, not about the venue's quotes.
 
 ## Bucket sums
 
@@ -55,16 +55,16 @@ Most persistent candidates (snapshots in which the event was flagged):
 
 | event | snapshots |
 |---|---|
-| `KXMOLDOVAPRES-28` | 117 |
-| `KXNEWPOPE-70` | 117 |
-| `KXNEXTSTATE-29` | 117 |
-| `KXPRESMATCHUP-28NOV07` | 117 |
-| `KXSENATENYD-28` | 117 |
-| `KXSTATE51-29` | 117 |
-| `KXTRUMPAGCOUNT-29` | 117 |
-| `KXVPRESNOMR-28` | 117 |
-| `KXNEXTDEPUTYAG-28JAN01` | 116 |
-| `KXPRESTAIWAN-28` | 116 |
+| `KXMOLDOVAPRES-28` | 119 |
+| `KXNEWPOPE-70` | 119 |
+| `KXNEXTSTATE-29` | 119 |
+| `KXPRESMATCHUP-28NOV07` | 119 |
+| `KXSENATENYD-28` | 119 |
+| `KXSTATE51-29` | 119 |
+| `KXTRUMPAGCOUNT-29` | 119 |
+| `KXVPRESNOMR-28` | 119 |
+| `KXNEXTDEPUTYAG-28JAN01` | 118 |
+| `KXPRESTAIWAN-28` | 118 |
 
 A bucket-sum candidate is NOT an arbitrage. The venue's mutually_exclusive flag promises at most one bucket settles YES, not that the listed buckets are exhaustive; the survivors on real data are open-universe events (next pope, 51st state, party nominations) whose missing 'someone else' bucket is exactly the mass that makes the asks sum below a dollar. Read the event rules before believing any row of this table.
 
