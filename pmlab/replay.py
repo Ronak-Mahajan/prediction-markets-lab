@@ -1123,8 +1123,14 @@ def write_plots(rows: list[dict], out: Path) -> list[Path]:
           ("ladder_inversions_net", "net of fee")]),
         ("negative_mass.svg",
          "Adjacent strike pairs with negative implied mass (at mids)", "count",
+         # Both series are counts of adjacent pairs, which is what the axis
+         # says. The second one used to be labelled "magnitude beyond two
+         # legs of fee", which reads as if the line were a magnitude; it is
+         # the number of pairs whose magnitude exceeds the fee, and the
+         # generated table says it that way too.
          [("ladder_negative_mass_gross", "negative mass"),
-          ("ladder_negative_mass_beyond_fee", "magnitude beyond two legs of fee")]),
+          ("ladder_negative_mass_beyond_fee",
+           "... whose magnitude exceeds two legs of fee")]),
         ("complement.svg", "Complement violations per snapshot", "count",
          [("poly_complement_gross", "Polymarket gross"),
           ("poly_complement_net", "Polymarket net"),
@@ -1247,7 +1253,12 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  replayed {i}/{len(paths)}", flush=True)
 
     if cache is not None:
-        cache.prune({k for k, _ in hashes})
+        # Prune only after a run that saw the whole archive. A --limit smoke
+        # run sees the newest N snapshots, and pruning against those would
+        # delete every other entry -- so the next full run pays for the
+        # convenience of the smoke run.
+        if not a.limit:
+            cache.prune({k for k, _ in hashes})
         cache.save(a.cache)
         if not a.quiet:
             print(f"  {cache.describe()}")
