@@ -45,13 +45,14 @@ def outputs(out: Path) -> dict[str, bytes]:
     return {p.name: p.read_bytes() for p in sorted(out.iterdir())}
 
 
-def replay(root: Path, out: Path, tmp: Path, cache: Path | None) -> int:
+def replay(root: Path, out: Path, tmp: Path, cache: Path | None,
+           extra: "list[str] | None" = None) -> int:
     args = ["--roots", str(root), "--out", str(out),
             "--settlements", str(tmp / "no-settlements"),
             "--events", str(tmp / "no-events.yaml"), "--no-plots", "--quiet"]
     if cache is not None:
         args += ["--cache", str(cache)]
-    return replay_mod.main(args)
+    return replay_mod.main(args + (extra or []))
 
 
 # --------------------------------------------------------------------------
@@ -167,6 +168,17 @@ def test_the_cache_drops_blobs_that_left_the_archive(tmp_path):
     replay(root, tmp_path / "results", tmp_path, cache)
     entries = cache_mod.ReplayCache.load(cache).entries
     assert len(entries) == 2 and "20260902/0100Z.json.gz" not in entries
+
+
+def test_a_limited_smoke_run_does_not_prune_the_rest_of_the_cache(tmp_path):
+    """--limit replays the newest N snapshots. Pruning against those would
+    make a one-line smoke run cost the next full run its whole cache."""
+    root, cache = tmp_path / "data", tmp_path / "c" / "replay.json.gz"
+    build_archive(root)
+    replay(root, tmp_path / "results", tmp_path, cache)
+    assert len(cache_mod.ReplayCache.load(cache).entries) == 3
+    replay(root, tmp_path / "smoke", tmp_path, cache, ["--limit", "1"])
+    assert len(cache_mod.ReplayCache.load(cache).entries) == 3
 
 
 def test_the_cache_file_is_byte_stable(tmp_path):
