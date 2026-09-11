@@ -144,10 +144,12 @@ at a one-cent contract is fourteen times too little; that single
 correction is the whole difference between "a one-cent inversion
 survives" and "it does not".
 
-Over the nineteen days of v1 data the answer is a clean negative: every
-one of the 291 <!-- results:ladders.by_recorder.schema1.inversions_gross -->
-gross inversions was one to three cents wide against two to four cents of
-fee, and they were not spread across the catalog either — the archive's
+Over the nineteen days of v1 data the answer is a clean negative: not one
+of the 291 <!-- results:ladders.by_recorder.schema1.inversions_gross -->
+gross inversions was wider than three cents, against the two to four
+cents of fee the two legs cost (a taker leg can never cost more than two
+cents, and never less than one), and they were not spread across the
+catalog either — the archive's
 303 <!-- results:ladders.inversions_gross_total --> gross inversions fall
 in 26 <!-- results:ladders.inversion_events --> events, overwhelmingly the
 long-dated `KXFEDFUNDSYEAR-3x` and `KXUSCPIYEAR` ladders that settle years
