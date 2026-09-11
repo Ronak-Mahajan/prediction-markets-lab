@@ -1,41 +1,41 @@
 {
- "generated": "2026-09-11T21:47:14Z",
- "code_commit": "894dbbde24473f6a5b3f3604d542de71337d0c71",
+ "generated": "2026-09-11T21:51:44Z",
+ "code_commit": "31960cb111507050e64cacf79e1b0b1333f6b903",
  "archive": {
   "roots": [
    "data",
    "archive/data"
   ],
-  "snapshots": 123,
+  "snapshots": 124,
   "first_snapshot": "2026-08-23T01:18:06Z",
-  "last_snapshot": "2026-09-11T20:03:47Z",
-  "days_spanned": 19.78,
+  "last_snapshot": "2026-09-11T21:47:34Z",
+  "days_spanned": 19.85,
   "schema1_snapshots": 117,
-  "schema2_snapshots": 6,
-  "identity_sha256": "d216ca88255d66a1854802fcdcab93e86f31a8fbee198b50bf428a004b5dd8a4",
-  "median_gap_hours": 3.31,
+  "schema2_snapshots": 7,
+  "identity_sha256": "f484c27d85897b90e2cfa2b385ee904b7351363af1a47d24875f1272d5219618",
+  "median_gap_hours": 3.3,
   "max_gap_hours": 12.64
  },
  "kalshi_identity": {
-  "books_checked_total": 1754851,
+  "books_checked_total": 1802195,
   "deviations_total": 0,
-  "books_median": 12744,
+  "books_median": 12745.0,
   "note": "no_ask == 1 - yes_bid is asserted as a data-quality invariant, not reported as a complement result; a single deviation fails the replay."
  },
  "ladders": {
-  "median_per_snapshot": 1121,
+  "median_per_snapshot": 1121.0,
   "min_per_snapshot": 848,
   "max_per_snapshot": 3488,
-  "rungs_median_per_snapshot": 7976,
-  "rungs_total": 1105365,
-  "adjacent_pairs_total": 953621,
-  "inversions_gross_total": 310,
+  "rungs_median_per_snapshot": 7976.0,
+  "rungs_total": 1134980,
+  "adjacent_pairs_total": 979752,
+  "inversions_gross_total": 315,
   "inversions_net_total": 3,
-  "snapshots_with_gross_inversion": 68,
+  "snapshots_with_gross_inversion": 69,
   "snapshots_with_net_inversion": 3,
-  "negative_mass_gross_total": 18773,
-  "negative_mass_beyond_fee_total": 8186,
-  "negative_mass_gross_median": 117,
+  "negative_mass_gross_total": 20753,
+  "negative_mass_beyond_fee_total": 8876,
+  "negative_mass_gross_median": 117.0,
   "worst_gross_inversion": {
    "snapshot": "2026-08-26T09:05:55Z",
    "event_ticker": "KXFEDFUNDSYEAR-32JAN01",
@@ -63,9 +63,9 @@
     "inversions_net": 0
    },
    "schema2": {
-    "snapshots": 6,
-    "adjacent_pairs": 148913,
-    "inversions_gross": 19,
+    "snapshots": 7,
+    "adjacent_pairs": 175044,
+    "inversions_gross": 24,
     "inversions_net": 3
    }
   },
@@ -73,7 +73,7 @@
   "net_inversion_event_tickers": [
    "KXINXMINY-01JAN2027"
   ],
-  "inversion_events": 27,
+  "inversion_events": 28,
   "top_inversion_events": [
    {
     "event_ticker": "KXFEDFUNDSYEAR-32JAN01",
@@ -109,25 +109,25 @@
    },
    {
     "event_ticker": "KXMDT-26DECCARDGROW",
-    "inversions": 6
+    "inversions": 7
    },
    {
     "event_ticker": "KXB200MAX-26DEC31",
+    "inversions": 6
+   },
+   {
+    "event_ticker": "KXFEDFUNDSYEAR-28JAN01",
     "inversions": 5
    },
    {
     "event_ticker": "KXLFPRATEEOY-33JAN07",
     "inversions": 5
-   },
-   {
-    "event_ticker": "KXMIDTERMMOV-MO06R",
-    "inversions": 5
    }
   ]
  },
  "polymarket_complement": {
-  "pairs_median_per_snapshot": 942,
-  "two_sided_median_per_snapshot": 887,
+  "pairs_median_per_snapshot": 941.5,
+  "two_sided_median_per_snapshot": 884.5,
   "crossed_books_total": 0,
   "gross_total": 43,
   "net_total": 43,
@@ -135,8 +135,8 @@
   "gross_string_sorted_era": 43,
   "gross_numeric_era": 0,
   "snapshots_string_sorted_era": 68,
-  "snapshots_numeric_era": 55,
-  "pairs_total": 114905,
+  "snapshots_numeric_era": 56,
+  "pairs_total": 115789,
   "worst": {
    "snapshot": "2026-08-27T09:57:38Z",
    "market_id": "3597573",
@@ -153,20 +153,20 @@
   "note": "Screened on the venue's quoted outcome-price pair, not on two asks: the complementary token's book is not in this archive (a recorder gap). A violation is an incoherent quote, not a demonstrated trade."
  },
  "predictit_complement": {
-  "pairs_median_per_snapshot": 495,
-  "pairs_total": 60196,
+  "pairs_median_per_snapshot": 495.5,
+  "pairs_total": 60702,
   "gross_total": 0,
   "net_total": 0,
   "snapshots_with_violation": 0,
   "worst": null
  },
  "buckets": {
-  "screened_median_per_snapshot": 228,
-  "screened_total": 31856,
-  "candidates_gross_median": 20,
-  "candidates_net_median": 8,
-  "candidates_gross_total": 2884,
-  "candidates_net_total": 1215,
+  "screened_median_per_snapshot": 228.0,
+  "screened_total": 32817,
+  "candidates_gross_median": 20.0,
+  "candidates_net_median": 8.0,
+  "candidates_gross_total": 2961,
+  "candidates_net_total": 1260,
   "worst": {
    "snapshot": "2026-09-11T15:39:09Z",
    "event_ticker": "KXNEXTTEAMNFL-26BSOR",
@@ -180,63 +180,63 @@
   "recurring_candidates": [
    {
     "event_ticker": "KXMOLDOVAPRES-28",
-    "snapshots": 123
+    "snapshots": 124
    },
    {
     "event_ticker": "KXNEWPOPE-70",
-    "snapshots": 123
+    "snapshots": 124
    },
    {
     "event_ticker": "KXNEXTSTATE-29",
-    "snapshots": 123
+    "snapshots": 124
    },
    {
     "event_ticker": "KXPRESMATCHUP-28NOV07",
-    "snapshots": 123
+    "snapshots": 124
    },
    {
     "event_ticker": "KXSENATENYD-28",
-    "snapshots": 123
+    "snapshots": 124
    },
    {
     "event_ticker": "KXSTATE51-29",
-    "snapshots": 123
+    "snapshots": 124
    },
    {
     "event_ticker": "KXTRUMPAGCOUNT-29",
-    "snapshots": 123
+    "snapshots": 124
    },
    {
     "event_ticker": "KXVPRESNOMR-28",
-    "snapshots": 123
+    "snapshots": 124
    },
    {
     "event_ticker": "KXNEXTDEPUTYAG-28JAN01",
-    "snapshots": 122
+    "snapshots": 123
    },
    {
     "event_ticker": "KXPRESTAIWAN-28",
-    "snapshots": 122
+    "snapshots": 123
    },
    {
     "event_ticker": "KXLONDONMAYOR-28MAY01",
-    "snapshots": 121
+    "snapshots": 122
    },
    {
     "event_ticker": "KXNEWROLEGS-35DEC",
-    "snapshots": 120
+    "snapshots": 121
    },
    {
     "event_ticker": "KXPRESNOMG-28",
-    "snapshots": 120
+    "snapshots": 121
    },
    {
     "event_ticker": "KXPRESTURKEYR1-28",
-    "snapshots": 119
+    "snapshots": 120
    },
    {
     "event_ticker": "KXDTICKET-28NOV07",
-    "snapshots": 95
+    "snapshots": 96
    }
   ]
  },
@@ -268,16 +268,16 @@
   "kalshi_reduced_multiplier_series": []
  },
  "calibration": {
-  "settlements_read": 33803,
+  "settlements_read": 38297,
   "settlement_files": 19,
   "settlement_roots": [
    "archive/settlements",
    "settlements"
   ],
   "settlements_by_venue": {
-   "kalshi": 7670,
+   "kalshi": 11984,
    "manifold": 452,
-   "polymarket": 25534,
+   "polymarket": 25714,
    "predictit": 147
   },
   "settlements_excluded": {
@@ -289,11 +289,11 @@
     "resolution=MKT": 12
    },
    "polymarket": {
-    "outcome price not 0 or 1": 107
+    "outcome price not 0 or 1": 108
    }
   },
-  "settled_markets_quoted_in_archive": 33803,
-  "snapshots_seen": 123,
+  "settled_markets_quoted_in_archive": 38297,
+  "snapshots_seen": 124,
   "horizons": [
    {
     "label": "1d",
@@ -324,32 +324,32 @@
    "manifold": "totalLiquidity",
    "predictit": "none recorded"
   },
-  "observations": 4812,
-  "observations_rejected_stale": 16090,
+  "observations": 4823,
+  "observations_rejected_stale": 16150,
   "observations_rejected_one_sided": 1024,
   "one_sided_rule": "a market/horizon cell whose only in-window quote had no bid or no ask is reported unscored: a one-sided book has not made a forecast, and its mid is not a price",
   "stale_rule": "a market/horizon cell whose newest quote at or before the cut-off was more than 24 h older than the cut-off is reported unscored rather than scored on a stale price",
-  "observations_headline": 4763,
+  "observations_headline": 4774,
   "inferred_excluded_from_headline": 49,
   "empty": false,
   "note": "",
   "by_horizon": {
    "1d": {
-    "n": 3235,
+    "n": 3246,
     "blocks": 52,
-    "brier": 0.1553590556881953,
-    "brier_bootstrap_lo": 0.13918072990361358,
-    "brier_bootstrap_hi": 0.1679638114084641,
-    "log_score": -0.4631908593654367,
+    "brier": 0.155342335228377,
+    "brier_bootstrap_lo": 0.1392686069700862,
+    "brier_bootstrap_hi": 0.1678901325912044,
+    "log_score": -0.4632457603115239,
     "log_clipped": 0,
-    "brier_skill_vs_5050": 0.3785637772472188,
-    "log_lift_vs_5050": 0.2299563211945086,
-    "mean_mid": 0.39637590375332804,
-    "base_rate": 0.3805255023183926,
+    "brier_skill_vs_5050": 0.37863065908649196,
+    "log_lift_vs_5050": 0.22990142024842136,
+    "mean_mid": 0.39617407536722615,
+    "base_rate": 0.38016019716574245,
     "median_spread_cents": 3.0,
-    "median_hours_before_settlement": 30.59,
+    "median_hours_before_settlement": 30.57,
     "coverage": {
-     "settled_markets_scored": 3235,
+     "settled_markets_scored": 3246,
      "why_empty": ""
     }
    },
@@ -443,19 +443,19 @@
     "median_hours_before_settlement": 170.27
    },
    "polymarket|1d": {
-    "n": 2766,
+    "n": 2777,
     "blocks": 19,
-    "brier": 0.1644566009580622,
+    "brier": 0.1644010202556716,
     "brier_bootstrap_lo": 0.15354976513035382,
-    "brier_bootstrap_hi": 0.17415808355367532,
-    "log_score": -0.4900844681235806,
+    "brier_bootstrap_hi": 0.1740666295777682,
+    "log_score": -0.4900421126229179,
     "log_clipped": 0,
-    "brier_skill_vs_5050": 0.3421735961677512,
-    "log_lift_vs_5050": 0.2030627124363647,
-    "mean_mid": 0.34307574114244394,
-    "base_rate": 0.3214027476500362,
+    "brier_skill_vs_5050": 0.3423959189773136,
+    "log_lift_vs_5050": 0.20310506793702737,
+    "mean_mid": 0.34305095426719484,
+    "base_rate": 0.3212099387828592,
     "median_spread_cents": 5.0,
-    "median_hours_before_settlement": 32.53
+    "median_hours_before_settlement": 32.41
    },
    "polymarket|1wk": {
     "n": 1244,
@@ -565,19 +565,19 @@
     "median_hours_before_settlement": 26.98
    },
    "unknown": {
-    "n": 2992,
+    "n": 3003,
     "blocks": 38,
-    "brier": 0.16667285934201598,
+    "brier": 0.1666133433737302,
     "brier_bootstrap_lo": null,
     "brier_bootstrap_hi": null,
-    "log_score": -0.4954554784891885,
+    "log_score": -0.49539663655133903,
     "log_clipped": 0,
-    "brier_skill_vs_5050": 0.3333085626319361,
-    "log_lift_vs_5050": 0.19769170207075676,
-    "mean_mid": 0.3545942675942568,
-    "base_rate": 0.3375668449197861,
+    "brier_skill_vs_5050": 0.33354662650507916,
+    "log_lift_vs_5050": 0.19775054400860625,
+    "mean_mid": 0.3545291537269451,
+    "base_rate": 0.33732933732933734,
     "median_spread_cents": 4.0,
-    "median_hours_before_settlement": 31.38
+    "median_hours_before_settlement": 31.35
    }
   },
   "by_liquidity": {
@@ -597,17 +597,17 @@
     "median_hours_before_settlement": 34.0
    },
    "10k-100k": {
-    "n": 192,
+    "n": 193,
     "blocks": 23,
-    "brier": 0.1281794609375,
+    "brier": 0.12782632901554405,
     "brier_bootstrap_lo": null,
     "brier_bootstrap_hi": null,
-    "log_score": -0.3982436311734007,
+    "log_score": -0.3976363456737101,
     "log_clipped": 0,
-    "brier_skill_vs_5050": 0.48728215625000004,
-    "log_lift_vs_5050": 0.29490354938654456,
-    "mean_mid": 0.4136458333333333,
-    "base_rate": 0.3697916666666667,
+    "brier_skill_vs_5050": 0.4886946839378238,
+    "log_lift_vs_5050": 0.2955108348862352,
+    "mean_mid": 0.41277202072538866,
+    "base_rate": 0.36787564766839376,
     "median_spread_cents": 1.0,
     "median_hours_before_settlement": 26.5
    },
@@ -642,19 +642,19 @@
     "median_hours_before_settlement": 34.39
    },
    ">=100k": {
-    "n": 218,
+    "n": 228,
     "blocks": 14,
-    "brier": 0.17542585091743118,
+    "brier": 0.17472581359649123,
     "brier_bootstrap_lo": null,
     "brier_bootstrap_hi": null,
-    "log_score": -0.5179917289771785,
+    "log_score": -0.5171687162776784,
     "log_clipped": 0,
-    "brier_skill_vs_5050": 0.2982965963302753,
-    "log_lift_vs_5050": 0.1751554515827668,
-    "mean_mid": 0.3932798165137615,
-    "base_rate": 0.3623853211009174,
+    "brier_skill_vs_5050": 0.3010967456140351,
+    "log_lift_vs_5050": 0.17597846428226693,
+    "mean_mid": 0.39120614035087714,
+    "base_rate": 0.35964912280701755,
     "median_spread_cents": 1.0,
-    "median_hours_before_settlement": 25.37
+    "median_hours_before_settlement": 25.32
    },
    "unknown": {
     "n": 226,
@@ -674,19 +674,19 @@
   },
   "by_era": {
    "numeric": {
-    "n": 352,
+    "n": 363,
     "blocks": 10,
-    "brier": 0.16689682883522727,
+    "brier": 0.16639768250688705,
     "brier_bootstrap_lo": null,
     "brier_bootstrap_hi": null,
-    "log_score": -0.49413212517388433,
+    "log_score": -0.49368544348547166,
     "log_clipped": 0,
-    "brier_skill_vs_5050": 0.3324126846590909,
-    "log_lift_vs_5050": 0.19901505538606096,
-    "mean_mid": 0.34733664772727274,
-    "base_rate": 0.3096590909090909,
+    "brier_skill_vs_5050": 0.3344092699724518,
+    "log_lift_vs_5050": 0.19946173707447362,
+    "mean_mid": 0.34701790633608814,
+    "base_rate": 0.3085399449035813,
     "median_spread_cents": 1.0,
-    "median_hours_before_settlement": 25.71
+    "median_hours_before_settlement": 25.59
    },
    "string_sorted": {
     "n": 2414,
@@ -746,14 +746,14 @@
       0.2,
       0.3
      ],
-     "n": 432,
+     "n": 438,
      "successes": 96,
-     "mean_price": 0.2512780645086869,
-     "frequency": 0.2222222222222222,
-     "wilson_lo": 0.18556320301321552,
-     "wilson_hi": 0.2637778471741564,
-     "bootstrap_lo": 0.1790744466800805,
-     "bootstrap_hi": 0.2769607843137255,
+     "mean_price": 0.2515345293784309,
+     "frequency": 0.2191780821917808,
+     "wilson_lo": 0.18296888045773077,
+     "wilson_hi": 0.26027032879260203,
+     "bootstrap_lo": 0.17553191489361702,
+     "bootstrap_hi": 0.27213822894168466,
      "bootstrap_draws_used": 1000,
      "bootstrap_blocks": 52
     },
@@ -763,14 +763,14 @@
       0.3,
       0.4
      ],
-     "n": 348,
+     "n": 349,
      "successes": 115,
-     "mean_price": 0.34989782050464036,
-     "frequency": 0.33045977011494254,
-     "wilson_lo": 0.2831261386743956,
-     "wilson_hi": 0.38149553383995516,
-     "bootstrap_lo": 0.28164556962025317,
-     "bootstrap_hi": 0.3745819397993311,
+     "mean_price": 0.34979782674961274,
+     "frequency": 0.32951289398280803,
+     "wilson_lo": 0.28228948003713467,
+     "wilson_hi": 0.38044856555102574,
+     "bootstrap_lo": 0.2809278350515464,
+     "bootstrap_hi": 0.3725,
      "bootstrap_draws_used": 1000,
      "bootstrap_blocks": 52
     },
@@ -780,14 +780,14 @@
       0.4,
       0.5
      ],
-     "n": 573,
-     "successes": 213,
-     "mean_price": 0.46191579612713335,
-     "frequency": 0.3717277486910995,
-     "wilson_lo": 0.3331355041251875,
-     "wilson_hi": 0.41202844386830423,
-     "bootstrap_lo": 0.33064516129032256,
-     "bootstrap_hi": 0.41509433962264153,
+     "n": 577,
+     "successes": 216,
+     "mean_price": 0.4617811978870838,
+     "frequency": 0.37435008665511266,
+     "wilson_lo": 0.33581513617487635,
+     "wilson_hi": 0.41454703615705524,
+     "bootstrap_lo": 0.3347732181425486,
+     "bootstrap_hi": 0.41596638655462187,
      "bootstrap_draws_used": 1000,
      "bootstrap_blocks": 52
     },
@@ -1262,14 +1262,14 @@
       0.2,
       0.3
      ],
-     "n": 418,
+     "n": 424,
      "successes": 92,
-     "mean_price": 0.25104186602870815,
-     "frequency": 0.22009569377990432,
-     "wilson_lo": 0.18302588416956464,
-     "wilson_hi": 0.26226334687668307,
-     "bootstrap_lo": 0.17136150234741784,
-     "bootstrap_hi": 0.2774566473988439,
+     "mean_price": 0.251310141509434,
+     "frequency": 0.2169811320754717,
+     "wilson_lo": 0.18038225622063275,
+     "wilson_hi": 0.25866228925065776,
+     "bootstrap_lo": 0.16666666666666666,
+     "bootstrap_hi": 0.2727272727272727,
      "bootstrap_draws_used": 1000,
      "bootstrap_blocks": 19
     },
@@ -1279,14 +1279,14 @@
       0.3,
       0.4
      ],
-     "n": 324,
+     "n": 325,
      "successes": 107,
-     "mean_price": 0.3490061728395062,
-     "frequency": 0.33024691358024694,
-     "wilson_lo": 0.28128833567857126,
-     "wilson_hi": 0.3831836307557984,
-     "bootstrap_lo": 0.27647058823529413,
-     "bootstrap_hi": 0.37888198757763975,
+     "mean_price": 0.3489015384615385,
+     "frequency": 0.3292307692307692,
+     "wilson_lo": 0.28039493631626095,
+     "wilson_hi": 0.3820563847627035,
+     "bootstrap_lo": 0.2757352941176471,
+     "bootstrap_hi": 0.3780487804878049,
      "bootstrap_draws_used": 1000,
      "bootstrap_blocks": 19
     },
@@ -1296,14 +1296,14 @@
       0.4,
       0.5
      ],
-     "n": 534,
-     "successes": 190,
-     "mean_price": 0.4627631086142322,
-     "frequency": 0.35580524344569286,
-     "wilson_lo": 0.31636111275090095,
-     "wilson_hi": 0.39730915666798305,
-     "bootstrap_lo": 0.30990415335463256,
-     "bootstrap_hi": 0.3921232876712329,
+     "n": 538,
+     "successes": 193,
+     "mean_price": 0.4626124535315985,
+     "frequency": 0.3587360594795539,
+     "wilson_lo": 0.319340356264504,
+     "wilson_hi": 0.400134782588254,
+     "bootstrap_lo": 0.3180722891566265,
+     "bootstrap_hi": 0.3940620782726046,
      "bootstrap_draws_used": 1000,
      "bootstrap_blocks": 19
     },
@@ -1432,14 +1432,14 @@
       0.2,
       0.3
      ],
-     "n": 331,
+     "n": 337,
      "successes": 89,
-     "mean_price": 0.24572998147357322,
-     "frequency": 0.2688821752265861,
-     "bias_cents": 2.32,
+     "mean_price": 0.24607306785683306,
+     "frequency": 0.26409495548961426,
+     "bias_cents": 1.8,
      "median_spread_cents": 3.0,
-     "wilson_lo": 0.22396959603814737,
-     "wilson_hi": 0.31909773935681973
+     "wilson_lo": 0.21987643736670828,
+     "wilson_hi": 0.31363101636472357
     },
     {
      "bin": 3,
@@ -1447,14 +1447,14 @@
       0.3,
       0.4
      ],
-     "n": 270,
+     "n": 271,
      "successes": 113,
-     "mean_price": 0.3465757093911661,
-     "frequency": 0.4185185185185185,
-     "bias_cents": 7.19,
-     "median_spread_cents": 3.5,
-     "wilson_lo": 0.3612219940451662,
-     "wilson_hi": 0.4781010938860859
+     "mean_price": 0.3464407436738555,
+     "frequency": 0.41697416974169743,
+     "bias_cents": 7.05,
+     "median_spread_cents": 3.0,
+     "wilson_lo": 0.35983154341904844,
+     "wilson_hi": 0.4764376999738754
     },
     {
      "bin": 4,
@@ -1462,14 +1462,14 @@
       0.4,
       0.5
      ],
-     "n": 296,
-     "successes": 147,
-     "mean_price": 0.4487001729082681,
-     "frequency": 0.4966216216216216,
-     "bias_cents": 4.79,
-     "median_spread_cents": 3.0,
-     "wilson_lo": 0.4400719366102124,
-     "wilson_hi": 0.5532578717229842
+     "n": 300,
+     "successes": 150,
+     "mean_price": 0.4485508372694912,
+     "frequency": 0.5,
+     "bias_cents": 5.14,
+     "median_spread_cents": 2.0,
+     "wilson_lo": 0.4437795161208904,
+     "wilson_hi": 0.5562204838791096
     },
     {
      "bin": 5,
@@ -1584,14 +1584,14 @@
       0.2,
       0.3
      ],
-     "n": 289,
+     "n": 293,
      "successes": 54,
-     "mean_price": 0.24651772964620322,
-     "frequency": 0.18685121107266436,
-     "bias_cents": -5.97,
+     "mean_price": 0.2467359176373813,
+     "frequency": 0.18430034129692832,
+     "bias_cents": -6.24,
      "median_spread_cents": 2.0,
-     "wilson_lo": 0.14612629684022543,
-     "wilson_hi": 0.23579182114828195
+     "wilson_lo": 0.14408937840872274,
+     "wilson_hi": 0.2326823140164083
     },
     {
      "bin": 3,
@@ -1599,14 +1599,14 @@
       0.3,
       0.4
      ],
-     "n": 286,
+     "n": 289,
      "successes": 91,
-     "mean_price": 0.3461623829916603,
-     "frequency": 0.3181818181818182,
-     "bias_cents": -2.8,
+     "mean_price": 0.34575239285679876,
+     "frequency": 0.314878892733564,
+     "bias_cents": -3.09,
      "median_spread_cents": 3.0,
-     "wilson_lo": 0.2669158491434878,
-     "wilson_hi": 0.3742672982830126
+     "wilson_lo": 0.26405487640774855,
+     "wilson_hi": 0.3705597016296564
     },
     {
      "bin": 4,
@@ -1614,14 +1614,14 @@
       0.4,
       0.5
      ],
-     "n": 350,
-     "successes": 139,
-     "mean_price": 0.44688071765956394,
-     "frequency": 0.39714285714285713,
-     "bias_cents": -4.97,
+     "n": 354,
+     "successes": 142,
+     "mean_price": 0.4468877152001338,
+     "frequency": 0.4011299435028249,
+     "bias_cents": -4.58,
      "median_spread_cents": 5.0,
-     "wilson_lo": 0.34726441785414247,
-     "wilson_hi": 0.449254621379984
+     "wilson_lo": 0.35139802074805615,
+     "wilson_hi": 0.45298462336942535
     },
     {
      "bin": 5,
@@ -1708,7 +1708,7 @@
    "venue_counts": {
     "kalshi": 243,
     "manifold": 226,
-    "polymarket": 2766
+    "polymarket": 2777
    }
   },
   "inferred": {
@@ -1752,30 +1752,30 @@
   },
   "headline_horizon": "1d",
   "headline": {
-   "n": 3235,
+   "n": 3246,
    "blocks": 52,
-   "brier": 0.1553590556881953,
-   "brier_bootstrap_lo": 0.13918072990361358,
-   "brier_bootstrap_hi": 0.1679638114084641,
-   "log_score": -0.4631908593654367,
+   "brier": 0.155342335228377,
+   "brier_bootstrap_lo": 0.1392686069700862,
+   "brier_bootstrap_hi": 0.1678901325912044,
+   "log_score": -0.4632457603115239,
    "log_clipped": 0,
-   "brier_skill_vs_5050": 0.3785637772472188,
-   "log_lift_vs_5050": 0.2299563211945086,
-   "mean_mid": 0.39637590375332804,
-   "base_rate": 0.3805255023183926,
+   "brier_skill_vs_5050": 0.37863065908649196,
+   "log_lift_vs_5050": 0.22990142024842136,
+   "mean_mid": 0.39617407536722615,
+   "base_rate": 0.38016019716574245,
    "median_spread_cents": 3.0,
-   "median_hours_before_settlement": 30.59
+   "median_hours_before_settlement": 30.57
   },
   "composition": {
    "horizon": "1d",
-   "n": 3235,
+   "n": 3246,
    "by_venue": {
     "kalshi": 243,
     "manifold": 226,
-    "polymarket": 2766
+    "polymarket": 2777
    },
    "by_era": {
-    "numeric": 352,
+    "numeric": 363,
     "string_sorted": 2414
    },
    "settlement_blocks": 52,
@@ -1815,8 +1815,8 @@
    ]
   },
   "mean_mid_by_outcome": {
-   "settled_yes": 0.6021,
-   "settled_no": 0.27,
+   "settled_yes": 0.6017,
+   "settled_no": 0.2701,
    "note": "A sanity check on the outcome join, not a result: if the quote were aligned to the wrong side of the market these two would be the wrong way round."
   }
  },
@@ -1830,7 +1830,7 @@
   "pairs_verified": 0,
   "pairs_unverified": 4,
   "pairs_rejected": [],
-  "snapshots_seen": 123,
+  "snapshots_seen": 124,
   "min_observations": 20,
   "empty": true,
   "note": "No verified cross-venue pair is in events.yaml, so there is no basis to measure. The file ships as a skeleton of examples marked `verified: false`; pairing is a hand check of both venues' rules pages (identical entity, identical deadline) and unverified pairs are counted here and never priced.",
