@@ -704,6 +704,17 @@ class CalibrationJoin:
                      st.settled_at - timedelta(days=days) - self.max_age)
                     for label, days in self.horizons]
 
+    def wanted_keys(self) -> dict[str, set[str]]:
+        """``{venue: {key, ...}}`` -- every row this join will ever look at.
+
+        A snapshot filtered down to these keys (see
+        :func:`pmlab.archive.snapshot_from_raw`) produces exactly the same
+        join as the whole snapshot, because every other row is dropped by
+        the ``key not in by_key`` test in :meth:`observe` anyway.
+        """
+        return {venue: set(by_key) for venue, by_key
+                in self.settlements.by_venue.items()}
+
     def observe(self, snap: Snapshot) -> None:
         self.snapshots_seen += 1
         t = snap.t

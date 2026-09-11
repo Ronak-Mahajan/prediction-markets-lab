@@ -4,3 +4,7 @@ __pycache__/
 .pytest_cache/
 archive/
 ci.log
+
+# The incremental replay cache (pmlab/cache.py). Derived state, rebuilt
+# from the archive on demand; CI restores it with actions/cache.
+.replaycache/
