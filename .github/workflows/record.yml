@@ -1,27 +1,115 @@
 name: record
 on:
   schedule:
-    - cron: "23 */2 * * *"    # every 2 hours, offset from the top
+    - cron: "23 */2 * * *"    # nominal: every 2 hours, offset from the top (archive median is 3.3 h)
   workflow_dispatch:
+  push:
+    branches: ["rebuild/**", "fix/**"]
+    paths:
+      - record.py
+      - pmlab/**
+      - .github/workflows/record.yml
 permissions:
   contents: write
 concurrency:
-  group: record
+  group: data-branch          # record and settle both write the data branch; serialise them
   cancel-in-progress: false
 jobs:
   snapshot:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4          # code from the triggering ref (main for the cron)
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: record snapshot
-        run: python record.py
-      - name: commit
+
+      - name: probe data branch
+        id: probe
         run: |
+          if git ls-remote --exit-code --heads origin data >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Partial clone + sparse cone: the run downloads manifest.json and the
+      # tiny settlements/ tree, never the archive it appends to, so the cost
+      # of a run stays flat as the branch grows.
+      - name: checkout data branch into ./archive (partial, sparse)
+        if: steps.probe.outputs.exists == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: data
+          path: archive
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout: settlements
+
+      - name: create orphan data branch
+        if: steps.probe.outputs.exists == 'false'
+        run: |
+          set -e
+          mkdir archive && cd archive
+          git init -b data
+          git remote add origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
+          cat > README.md <<'EOF'
+          # prediction-markets-lab: data branch
+
+          Orphan branch holding the snapshot archive recorded by
+          `.github/workflows/record.yml` from the day this branch was created,
+          and the settlement records written by `settle.yml`. The first 117
+          snapshots (2026-08-23 to 2026-09-11) live under `data/` on `main` and
+          were never moved; readers combine both roots via `pmlab.archive`.
+
+          - `data/YYYYMMDD/HHMMZ.json.gz`  one schema-2 snapshot per recorder run
+          - `manifest.json`                sha256 and size per blob, snapshot count, archive identity
+          - `settlements/<venue>/*.jsonl`  resolutions captured by `settle.py`
+
+          No code lives here. Do not rewrite this branch's history.
+          EOF
+          echo '{"schema": 1, "snapshot_count": 0, "blobs": {}}' > manifest.json
           git config user.name "recorder"
           git config user.email "actions@users.noreply.github.com"
-          git add data
-          git diff --cached --quiet || git commit -m "snapshot $(date -u +%Y-%m-%dT%H:%MZ)"
-          git push
+          git add -A
+          git commit -m "data: create orphan archive branch"
+
+      - name: record snapshot
+        run: |
+          set -o pipefail
+          python record.py --out archive/data 2>&1 | tee -a ci.log
+          python -m pmlab.manifest archive 2>&1 | tee -a ci.log
+
+      - name: commit and push to data
+        run: |
+          set -e
+          cd archive
+          git config user.name "recorder"
+          git config user.email "actions@users.noreply.github.com"
+          git add --sparse -A data manifest.json
+          if git diff --cached --quiet; then
+            echo "nothing to commit"; exit 0
+          fi
+          git commit -m "snapshot $(date -u +%Y-%m-%dT%H:%MZ)"
+          for i in 1 2 3 4 5; do
+            if git ls-remote --exit-code --heads origin data >/dev/null 2>&1; then
+              git pull --rebase origin data || { git rebase --abort || true; }
+            fi
+            if git push origin HEAD:data; then
+              echo "pushed on attempt $i"; exit 0
+            fi
+            sleep $((5 * i))
+          done
+          echo "push failed after 5 attempts"; exit 1
+
+      - name: save failure log to the code branch
+        if: failure() && github.ref != 'refs/heads/main'
+        run: |
+          mkdir -p .ci
+          tail -c 60000 ci.log > .ci/last-failure-record.log 2>/dev/null || echo "no ci.log captured" > .ci/last-failure-record.log
+          git config user.name "ci-bot"
+          git config user.email "ci-bot@users.noreply.github.com"
+          git add .ci
+          git commit -m "ci: failure log [skip ci]" || exit 0
+          git pull --rebase origin "$GITHUB_REF_NAME" || true
+          git push origin "HEAD:$GITHUB_REF_NAME"
