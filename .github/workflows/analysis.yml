@@ -55,19 +55,10 @@ jobs:
           fi
 
       # Unlike the recorder and the settle job, the replay needs every blob,
-      # so this is a full tip checkout with no sparse cone.
-      #
-      # KNOWN LIMIT, and it is a real one: this job re-reads the whole archive
-      # every run. On a hosted runner a recorder-v1 snapshot costs about half a
-      # second and a v2 snapshot (about 56,000 markets) a few seconds, so at
-      # roughly twelve snapshots a day the replay outgrows the timeout below in
-      # a couple of months, and the checkout outgrows the runner's disk in
-      # about a year (the data branch grows 2-8 MB a day). The fix is an
-      # incremental replay keyed on the per-blob sha256 already in
-      # manifest.json, reusing the row in results/timeseries.csv for any blob
-      # whose hash has not changed. That is not written yet; when this job
-      # starts taking more than ten minutes, write it rather than raising the
-      # timeout.
+      # so this is a full tip checkout with no sparse cone. The checkout
+      # outgrows the runner's disk in about a year at the data branch's 2-8 MB
+      # a day; when it does, the fix is monthly Release assets, not a bigger
+      # runner.
       - name: checkout data branch into ./archive
         if: steps.probe.outputs.exists == 'true'
         uses: actions/checkout@v4
@@ -75,6 +66,34 @@ jobs:
           ref: data
           path: archive
           fetch-depth: 1
+
+      # The per-blob screen cache (pmlab/cache.py). A snapshot's ladder,
+      # complement and bucket counts depend on nothing but that snapshot's
+      # bytes, so a blob whose sha256 has not moved is not screened again.
+      # Measured on the recording machine: a recorder-v2 snapshot costs
+      # 1.85 s to load and 0.98 s to screen, and the cache removes the 0.98.
+      #
+      # The key carries a hash of pmlab/ so a code change starts a fresh
+      # cache; the cache file also carries its own code fingerprint and
+      # discards itself on a mismatch, so correctness does not depend on the
+      # key being right. run_id makes every run save a new entry and the
+      # restore-keys prefix picks up the newest one with the same code.
+      #
+      # KNOWN LIMIT, still real: the settlement join is not a function of one
+      # blob -- a market settling tomorrow is scored against a quote recorded
+      # weeks ago -- so every blob is still read and decoded even when its
+      # screens are cached, and only the rows the join can use are coerced.
+      # That leaves the gzip and JSON decode, about 0.8 s per v2 snapshot,
+      # growing with the archive. The next step when this job approaches ten
+      # minutes again is a per-blob quote index written once and read instead
+      # of the blob; raising the timeout is not the fix.
+      - name: restore the replay cache
+        uses: actions/cache@v4
+        with:
+          path: .replaycache
+          key: replay-v1-${{ hashFiles('pmlab/*.py') }}-${{ github.run_id }}
+          restore-keys: |
+            replay-v1-${{ hashFiles('pmlab/*.py') }}-
 
       # settle.py writes archive/settlements/<venue>/*.jsonl on the data
       # branch, so the checkout above is also what makes the calibration
@@ -84,7 +103,11 @@ jobs:
       - name: replay the archive
         run: |
           set -o pipefail
-          python -m pmlab.replay --roots data archive/data             --settlements archive/settlements settlements             --events events.yaml 2>&1 | tee -a ci.log
+          ARGS="--roots data archive/data"
+          ARGS="$ARGS --settlements archive/settlements settlements"
+          ARGS="$ARGS --events events.yaml"
+          ARGS="$ARGS --cache .replaycache/replay.json.gz"
+          python -m pmlab.replay $ARGS 2>&1 | tee -a ci.log
           exit ${PIPESTATUS[0]}
 
       # Sync, then verify. --write repairs numbers in README.md that the fresh

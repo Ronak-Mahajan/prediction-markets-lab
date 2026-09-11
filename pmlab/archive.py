@@ -29,6 +29,7 @@ import gzip
 import json
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from functools import lru_cache
 from pathlib import Path
 from typing import Iterable, Iterator
 
@@ -50,8 +51,35 @@ KALSHI_FLOAT_FIELDS = {
 }
 
 
+# Loading is the expensive half of a replay and almost all of it is spent
+# coercing two kinds of string. One recorder-v2 snapshot (56,625 Kalshi
+# markets, measured 2026-09-11) calls to_float 1,271,630 times and
+# parse_time 230,502 times, and the values repeat: that snapshot holds
+# 1,050 distinct close_time strings and 898 distinct
+# expected_expiration_time strings for its 56,625 markets. Both caches
+# below are therefore keyed on the *string* only, never on a number: in an
+# lru_cache, True, 1 and 1.0 are the same key, so memoising the numeric
+# branches would make parse_time(True) and parse_time(1) collide. The
+# string branches cannot collide with anything and carry the whole cost.
+_FLOAT_CACHE_SIZE = 1 << 16
+_TIME_CACHE_SIZE = 1 << 15
+
+
+@lru_cache(maxsize=_FLOAT_CACHE_SIZE)
+def _str_to_float(s: str) -> float | None:
+    try:
+        return float(s)
+    except ValueError:
+        return None
+
+
 def to_float(x) -> float | None:
     """Coerce a JSON number, numeric string or None to float (None on failure)."""
+    t = type(x)
+    if t is str:                             # the hot case: "0.4700", "808.00"
+        return None if x == "" else _str_to_float(x)
+    if t is float or t is int:               # bool is not int here: type() is exact
+        return float(x)
     if x is None or x == "":
         return None
     if isinstance(x, bool):
@@ -87,7 +115,12 @@ def parse_time(s) -> datetime | None:
     operating systems and the archive's meaning depend on the runner. No
     prediction market resolves after ``_MAX_PLAUSIBLE_YEAR``; a stamp beyond
     it is a typo or a joke, and either way it is not a deadline.
+
+    ``datetime`` is immutable, so the memoised string branch below may hand
+    the same object to every caller.
     """
+    if type(s) is str:                       # the hot case; see _str_to_float
+        return None if s == "" else _parse_time_str(s)
     if s is None or s == "":
         return None
     if isinstance(s, bool):
@@ -102,7 +135,15 @@ def parse_time(s) -> datetime | None:
             return datetime.fromtimestamp(v, tz=timezone.utc)
         except (OSError, OverflowError, ValueError):
             return None                      # out of the representable range
-    s = str(s).strip()
+    return _parse_time_str(str(s))
+
+
+@lru_cache(maxsize=_TIME_CACHE_SIZE)
+def _parse_time_str(s: str) -> datetime | None:
+    """The ISO-8601 half of :func:`parse_time`, memoised on the raw string."""
+    s = s.strip()
+    if not s:
+        return None
     if s.endswith("Z"):
         s = s[:-1] + "+00:00"
     if " " in s and "T" not in s:           # Gamma closedTime "2026-08-28 22:04:52+00"
@@ -143,6 +184,10 @@ class Snapshot:
     errors: dict[str, str] = field(default_factory=dict)
     meta: dict = field(default_factory=dict)
     raw: dict = field(default_factory=dict)
+    #: True when the venue lists hold only the rows a caller asked for
+    #: (see :func:`snapshot_from_raw`). A filtered snapshot is not a
+    #: snapshot: counting anything over it is wrong.
+    filtered: bool = False
 
     @property
     def kalshi(self) -> list[dict]:
@@ -168,19 +213,45 @@ def read_raw(path: str | Path) -> dict:
         return json.load(fh)
 
 
+def read_blob(path: str | Path) -> bytes:
+    """The blob exactly as it sits on disk, for hashing and for decoding.
+
+    The replay needs both the sha256 of every blob (the archive identity it
+    publishes beside every number) and the JSON inside it. Reading the file
+    once and doing both from the same bytes halves the archive's I/O, which
+    on the recording machine is most of a replay's wall clock.
+    """
+    with open(path, "rb") as fh:
+        return fh.read()
+
+
+def raw_from_blob(path: str | Path, data: bytes) -> dict:
+    """Parse bytes already read by :func:`read_blob`."""
+    if Path(path).suffix == ".gz":
+        data = gzip.decompress(data)
+    return json.loads(data.decode("utf-8"))
+
+
 def detect_schema(raw: dict) -> int:
     s = raw.get("schema")
     return int(s) if isinstance(s, int) and s > 0 else 1
 
 
-def coerce_kalshi(events: list[dict], schema: int) -> list[dict]:
-    """Flatten events -> one row per market with event fields attached."""
+def coerce_kalshi(events: list[dict], schema: int,
+                  keep: set[str] | None = None) -> list[dict]:
+    """Flatten events -> one row per market with event fields attached.
+
+    ``keep``, when given, is a set of tickers: every other market is
+    skipped before it is coerced. See :func:`snapshot_from_raw`.
+    """
     rows: list[dict] = []
     for ev in events or []:
         evf = {k: ev.get(k) for k in KALSHI_EVENT_FIELDS if k in ev}
         if "title" in ev and "event_title" not in evf:
             evf["event_title"] = ev["title"]
         for m in ev.get("markets", []) or []:
+            if keep is not None and str(m.get("ticker")) not in keep:
+                continue
             r = dict(m)
             r.update(evf)
             r.setdefault("event_ticker", ev.get("event_ticker"))
@@ -199,12 +270,15 @@ def coerce_kalshi(events: list[dict], schema: int) -> list[dict]:
     return rows
 
 
-def coerce_polymarket(rows: list[dict], t: datetime, schema: int) -> list[dict]:
+def coerce_polymarket(rows: list[dict], t: datetime, schema: int,
+                      keep: set[str] | None = None) -> list[dict]:
     era = "numeric"
     if schema < 2 and t <= POLYMARKET_STRING_ERA_END:
         era = "string_sorted"
     out: list[dict] = []
     for m in rows or []:
+        if keep is not None and str(m.get("id")) not in keep:
+            continue
         r = dict(m)
         liq = to_float(m.get("liquidityNum"))
         if liq is None:
@@ -227,10 +301,13 @@ def coerce_polymarket(rows: list[dict], t: datetime, schema: int) -> list[dict]:
     return out
 
 
-def coerce_predictit(markets: list[dict]) -> list[dict]:
+def coerce_predictit(markets: list[dict],
+                     keep: set[str] | None = None) -> list[dict]:
     rows: list[dict] = []
     for mk in markets or []:
         for c in mk.get("contracts", []) or []:
+            if keep is not None and str(c.get("id")) not in keep:
+                continue
             r = dict(c)
             r["market_id"] = mk.get("id")
             r["market_name"] = mk.get("name")
@@ -242,9 +319,12 @@ def coerce_predictit(markets: list[dict]) -> list[dict]:
     return rows
 
 
-def coerce_manifold(rows: list[dict]) -> list[dict]:
+def coerce_manifold(rows: list[dict],
+                    keep: set[str] | None = None) -> list[dict]:
     out: list[dict] = []
     for m in rows or []:
+        if keep is not None and str(m.get("id")) not in keep:
+            continue
         r = dict(m)
         r["probability"] = to_float(m.get("probability"))
         r["volume"] = to_float(m.get("volume"))
@@ -257,21 +337,52 @@ def coerce_manifold(rows: list[dict]) -> list[dict]:
 
 def load_snapshot(path: str | Path) -> Snapshot:
     """Load one gzipped (or plain) snapshot of either schema into typed rows."""
-    raw = read_raw(path)
+    return snapshot_from_raw(path, read_raw(path))
+
+
+def load_snapshot_from_blob(path: str | Path, data: bytes,
+                            keep: dict[str, set[str]] | None = None) -> Snapshot:
+    """Same, from bytes already read (and usually already hashed)."""
+    return snapshot_from_raw(path, raw_from_blob(path, data), keep=keep)
+
+
+def snapshot_from_raw(path: str | Path, raw: dict,
+                      keep: dict[str, set[str]] | None = None) -> Snapshot:
+    """Coerce one already-parsed snapshot document into typed rows.
+
+    ``keep`` is ``{venue: {key, ...}}`` naming the only rows the caller
+    wants; every other row is dropped **before** it is coerced, and
+    :attr:`Snapshot.filtered` is set so nothing downstream mistakes the
+    result for the whole snapshot. This exists for the incremental replay,
+    where a snapshot whose screens are already cached still has to be read
+    for the settlement join, and the join looks at a few hundred of the
+    56,000 markets in a recorder-v2 blob. Coercing only those rows costs
+    about a third of a full load and is exact: the rows that survive are
+    byte-for-byte the ones a full load would have produced. The keys are
+    the same ones the join indexes on -- Kalshi ``ticker``, Polymarket and
+    Manifold ``id``, PredictIt contract ``id`` -- compared as strings.
+
+    Use it only where the missing rows provably do not matter. Every
+    coherence screen in this package needs the whole venue, and
+    :mod:`pmlab.replay` refuses to screen a filtered snapshot.
+    """
     schema = detect_schema(raw)
     t = parse_time(raw.get("t"))
     if t is None:
         t = snapshot_time_from_path(path)
     venues = raw.get("venues", {}) or {}
+    k = (lambda v: None) if keep is None else (lambda v: keep.get(v, set()))
     coerced = {
-        "kalshi": coerce_kalshi(venues.get("kalshi", []), schema),
-        "polymarket": coerce_polymarket(venues.get("polymarket", []), t, schema),
-        "predictit": coerce_predictit(venues.get("predictit", [])),
-        "manifold": coerce_manifold(venues.get("manifold", [])),
+        "kalshi": coerce_kalshi(venues.get("kalshi", []), schema, k("kalshi")),
+        "polymarket": coerce_polymarket(venues.get("polymarket", []), t, schema,
+                                        k("polymarket")),
+        "predictit": coerce_predictit(venues.get("predictit", []), k("predictit")),
+        "manifold": coerce_manifold(venues.get("manifold", []), k("manifold")),
     }
     return Snapshot(path=Path(path), t=t, schema=schema, venues=coerced,
                     errors=dict(raw.get("errors", {}) or {}),
-                    meta=dict(raw.get("meta", {}) or {}), raw=raw)
+                    meta=dict(raw.get("meta", {}) or {}), raw=raw,
+                    filtered=keep is not None)
 
 
 def snapshot_time_from_path(path: str | Path) -> datetime:

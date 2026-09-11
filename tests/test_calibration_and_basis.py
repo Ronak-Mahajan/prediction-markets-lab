@@ -546,11 +546,37 @@ def test_the_shipped_events_file_parses_and_is_entirely_unverified():
     pf = basis.load_pairs(ROOT / "events.yaml")
     assert pf.exists and pf.parsed
     assert pf.rejected == []
-    assert len(pf.pairs) >= 5
+    assert len(pf.pairs) >= 4
     assert pf.verified == [], "a skeleton pair must never claim verification"
     for p in pf.pairs:
         assert p.note, f"{p.id} must say what a person has to check"
         assert len(p.legs) == 2
+
+
+def test_no_shipped_leg_key_is_a_placeholder():
+    """The file carried `TODO-find-the-nber-market-id` as a Polymarket id
+    for a whole phase: unverified pairs are never priced, so nothing failed
+    and nothing complained."""
+    pf = basis.load_pairs(ROOT / "events.yaml")
+    for p in pf.pairs:
+        for leg in p.legs:
+            low = leg.key.lower()
+            assert not any(m in low for m in basis.PLACEHOLDER_MARKERS), leg.key
+            assert leg.key.strip() == leg.key and leg.key
+
+
+@pytest.mark.parametrize("key", ["TODO-find-the-nber-market-id", "tbd",
+                                 "FIXME-123", "xxx", "???"])
+def test_a_placeholder_key_is_rejected_with_a_reason(tmp_path, key):
+    p = tmp_path / "e.yaml"
+    p.write_text(
+        "pairs:\n"
+        f"  - id: x\n    legs:\n"
+        f"      - {{venue: kalshi, key: A}}\n"
+        f"      - {{venue: polymarket, key: '{key}'}}\n", encoding="utf-8")
+    pf = basis.load_pairs(p)
+    assert pf.pairs == []
+    assert "placeholder" in pf.rejected[0]["reason"]
 
 
 def test_an_unquoted_yaml_side_is_a_boolean_and_is_put_back(tmp_path):

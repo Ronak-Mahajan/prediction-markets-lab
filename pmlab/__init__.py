@@ -37,6 +37,13 @@ built to run cleanly and report why when that thing is not there yet:
 
 - ``pmlab.replay``      the CLI that runs all of it over every snapshot in
                         one pass and writes ``results/``
+- ``pmlab.cache``       the replay's per-blob screen cache: a snapshot's
+                        coherence counts are a function of its bytes alone,
+                        so a blob whose sha256 has not moved is not screened
+                        again. Off unless ``--cache`` is given, discarded
+                        whenever any module here changes, and pinned by
+                        ``tests/test_incremental.py`` to produce
+                        byte-identical output to a cold run
 
 Everything here is standard library except the replay's optional
 matplotlib figures (``python -m pmlab.replay --no-plots`` skips them) and

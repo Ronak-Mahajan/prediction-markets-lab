@@ -38,11 +38,13 @@ from pathlib import Path
 
 from . import basis as basis_mod
 from . import buckets as buckets_mod
+from . import cache as cache_mod
 from . import calibration as calibration_mod
 from . import complement as complement_mod
 from . import fees as fees_mod
 from . import ladders as ladders_mod
-from .archive import load_snapshot, snapshot_paths
+from .archive import (load_snapshot, load_snapshot_from_blob, read_blob,
+                      snapshot_paths)
 
 DEFAULT_ROOTS = ("data", "archive/data")
 DEFAULT_SETTLEMENT_ROOTS = ("archive/settlements", "settlements")
@@ -69,6 +71,24 @@ COLUMNS = (
 )
 
 
+def snapshot_key(p: Path) -> str:
+    """``YYYYMMDD/HHMMZ.json.gz`` -- the timeseries' ``path`` column."""
+    return f"{p.parent.name}/{p.name}"
+
+
+def archive_identity_from_hashes(pairs: "list[tuple[str, str]]") -> str:
+    """sha256 over the sorted (snapshot key, blob sha256) pairs replayed.
+
+    Split out from :func:`archive_identity` so the replay can hash each
+    blob while it reads it, instead of opening the whole archive a second
+    time purely to hash it. Same construction, same digest.
+    """
+    h = hashlib.sha256()
+    for key, sha in sorted(pairs, key=lambda kv: tuple(kv[0].split("/", 1))):
+        h.update(f"{key}\t{sha}\n".encode())
+    return h.hexdigest()
+
+
 def archive_identity(paths: list[Path]) -> str:
     """sha256 over the sorted (path, blob sha256) pairs actually replayed.
 
@@ -76,14 +96,9 @@ def archive_identity(paths: list[Path]) -> str:
     computed here over whatever roots this run was pointed at, so a result
     can always be traced back to the exact bytes behind it.
     """
-    h = hashlib.sha256()
-    for p in sorted(paths, key=lambda q: (q.parent.name, q.name)):
-        bh = hashlib.sha256()
-        with open(p, "rb") as fh:
-            for chunk in iter(lambda: fh.read(1 << 20), b""):
-                bh.update(chunk)
-        h.update(f"{p.parent.name}/{p.name}\t{bh.hexdigest()}\n".encode())
-    return h.hexdigest()
+    return archive_identity_from_hashes(
+        [(snapshot_key(p), hashlib.sha256(read_blob(p)).hexdigest())
+         for p in paths])
 
 
 def code_commit() -> str:
@@ -106,7 +121,52 @@ def _schema_of(row: dict) -> int:
     return 1 if int(row["schema"]) < 2 else 2
 
 
-def replay_one(path: Path, observers: "tuple" = ()) -> dict:
+def _detail_of(lad, poly, pi, buc) -> dict:
+    """The parts of a snapshot's screens that :func:`summarise` needs but
+    ``timeseries.csv`` has no column for: the worst case of each screen and
+    the event tickers behind the counts.
+
+    Kept as plain JSON-able values rather than the report objects, because
+    the incremental replay stores this dict and reloads it instead of
+    re-screening a blob whose bytes have not moved. Every float here is
+    stored unrounded: the rounding happens once, in the summary, so a
+    cached row and a freshly computed one round to the same digits.
+    """
+    def inv(i) -> dict | None:
+        return None if i is None else {
+            "event_ticker": i.event_ticker, "lower_ticker": i.lower_ticker,
+            "upper_ticker": i.upper_ticker,
+            "lower_threshold": i.lower_threshold,
+            "upper_threshold": i.upper_threshold,
+            "lower_ask": i.lower_ask, "upper_bid": i.upper_bid,
+            "gross_edge": i.gross_edge, "net_edge": i.net_edge, "fee": i.fee}
+
+    return {
+        "worst_inversion": inv(lad.worst_inversion),
+        "worst_net_inversion": inv(lad.worst_net_inversion),
+        "inversions_by_event": dict(lad.inversions_by_event),
+        "net_inversion_events": list(lad.net_inversions),
+        "worst_poly": None if poly.worst is None else {
+            "market_id": poly.worst.market_id, "question": poly.worst.question,
+            "prices": list(poly.worst.prices), "total": poly.worst.total,
+            "gross_edge": poly.worst.gross_edge,
+            "net_edge": poly.worst.net_edge, "era": poly.worst.era},
+        "worst_predictit": None if pi.worst is None else {
+            "market_name": pi.worst.market_name,
+            "contract_name": pi.worst.contract_name,
+            "yes_cost": pi.worst.yes_cost, "no_cost": pi.worst.no_cost,
+            "gross_edge": pi.worst.gross_edge, "net_edge": pi.worst.net_edge},
+        "worst_bucket": None if buc.worst is None else {
+            "event_ticker": buc.worst.event_ticker, "title": buc.worst.title,
+            "buckets": buc.worst.buckets, "ask_sum": buc.worst.ask_sum,
+            "gross_edge": buc.worst.gross_edge,
+            "net_edge": buc.worst.net_edge},
+        "bucket_candidate_events": [c.event_ticker for c in buc.candidates],
+    }
+
+
+def replay_one(path: Path, observers: "tuple" = (),
+               snap: "object | None" = None) -> dict:
     """Every screen on one snapshot -> one flat row of counts.
 
     ``observers`` are the studies that need the whole archive rather than
@@ -114,8 +174,16 @@ def replay_one(path: Path, observers: "tuple" = ()) -> dict:
     the loaded snapshot here so the replay stays a single pass over the
     blobs: at 120 snapshots and 56,000 Kalshi markets each, a second pass
     is a minute of runner time for nothing.
+
+    ``snap`` lets a caller that has already decoded the blob hand the
+    snapshot straight in, so the bytes are read, hashed and parsed once.
     """
-    snap = load_snapshot(path)
+    if snap is None:
+        snap = load_snapshot(path)
+    if getattr(snap, "filtered", False):
+        # A filtered snapshot holds only the rows some join asked for. Every
+        # count below would be a count of that filter.
+        raise ValueError(f"refusing to screen a filtered snapshot: {path}")
     for obs in observers:
         obs.observe(snap)
     ident = complement_mod.assert_kalshi_identity(snap.kalshi, where=str(path))
@@ -169,8 +237,7 @@ def replay_one(path: Path, observers: "tuple" = ()) -> dict:
         "bucket_candidates_net": buc.net,
         "manifold_rows": len(snap.manifold),
     }
-    row["_reports"] = {"ladders": lad, "poly": poly, "predictit": pi,
-                       "buckets": buc}
+    row["_detail"] = _detail_of(lad, poly, pi, buc)
     return row
 
 
@@ -189,7 +256,11 @@ def cadence_hours(rows: list[dict]) -> tuple[float | None, float | None]:
 
 def summarise(rows: list[dict], paths: list[Path], roots: tuple[str, ...],
               calibration: dict | None = None,
-              basis: dict | None = None) -> dict:
+              basis: dict | None = None,
+              identity: str | None = None) -> dict:
+    """Aggregate the per-snapshot rows. ``identity`` is the archive sha256
+    when the caller already hashed every blob as it read it; otherwise the
+    blobs are opened again to compute it."""
     ints = lambda k: [int(r[k]) for r in rows]                  # noqa: E731
     med_gap, max_gap = cadence_hours(rows)
     ts = sorted(r["t"] for r in rows)
@@ -199,21 +270,26 @@ def summarise(rows: list[dict], paths: list[Path], roots: tuple[str, ...],
     worst_inv = worst_net_inv = None
     worst_poly = worst_pi = worst_bucket = None
     for r in rows:
-        rep = r["_reports"]
-        li = rep["ladders"].worst_inversion
-        if li and (worst_inv is None or li.gross_edge > worst_inv[1].gross_edge):
+        rep = r["_detail"]
+        li = rep["worst_inversion"]
+        if li and (worst_inv is None
+                   or li["gross_edge"] > worst_inv[1]["gross_edge"]):
             worst_inv = (r["t"], li)
-        ln = rep["ladders"].worst_net_inversion
-        if ln and (worst_net_inv is None or ln.net_edge > worst_net_inv[1].net_edge):
+        ln = rep["worst_net_inversion"]
+        if ln and (worst_net_inv is None
+                   or ln["net_edge"] > worst_net_inv[1]["net_edge"]):
             worst_net_inv = (r["t"], ln)
-        pw = rep["poly"].worst
-        if pw and (worst_poly is None or pw.gross_edge > worst_poly[1].gross_edge):
+        pw = rep["worst_poly"]
+        if pw and (worst_poly is None
+                   or pw["gross_edge"] > worst_poly[1]["gross_edge"]):
             worst_poly = (r["t"], pw)
-        iw = rep["predictit"].worst
-        if iw and (worst_pi is None or iw.gross_edge > worst_pi[1].gross_edge):
+        iw = rep["worst_predictit"]
+        if iw and (worst_pi is None
+                   or iw["gross_edge"] > worst_pi[1]["gross_edge"]):
             worst_pi = (r["t"], iw)
-        bw = rep["buckets"].worst
-        if bw and (worst_bucket is None or bw.gross_edge > worst_bucket[1].gross_edge):
+        bw = rep["worst_bucket"]
+        if bw and (worst_bucket is None
+                   or bw["gross_edge"] > worst_bucket[1]["gross_edge"]):
             worst_bucket = (r["t"], bw)
 
     def dated(pair, body):
@@ -230,7 +306,8 @@ def summarise(rows: list[dict], paths: list[Path], roots: tuple[str, ...],
             "days_spanned": round(days, 2),
             "schema1_snapshots": sum(1 for r in rows if int(r["schema"]) == 1),
             "schema2_snapshots": sum(1 for r in rows if int(r["schema"]) >= 2),
-            "identity_sha256": archive_identity(paths),
+            "identity_sha256": (identity if identity is not None
+                                else archive_identity(paths)),
             "median_gap_hours": None if med_gap is None else round(med_gap, 2),
             "max_gap_hours": None if max_gap is None else round(max_gap, 2),
         },
@@ -261,18 +338,19 @@ def summarise(rows: list[dict], paths: list[Path], roots: tuple[str, ...],
             "negative_mass_gross_median": _median(
                 ints("ladder_negative_mass_gross")),
             "worst_gross_inversion": dated(worst_inv, lambda i: {
-                "event_ticker": i.event_ticker,
-                "lower_ticker": i.lower_ticker, "upper_ticker": i.upper_ticker,
-                "lower_threshold": i.lower_threshold,
-                "upper_threshold": i.upper_threshold,
-                "lower_ask": i.lower_ask, "upper_bid": i.upper_bid,
-                "gross_edge_cents": round(i.gross_edge * 100, 2),
-                "fee_cents": round(i.fee * 100, 2),
-                "net_edge_cents": round(i.net_edge * 100, 2)}),
+                "event_ticker": i["event_ticker"],
+                "lower_ticker": i["lower_ticker"],
+                "upper_ticker": i["upper_ticker"],
+                "lower_threshold": i["lower_threshold"],
+                "upper_threshold": i["upper_threshold"],
+                "lower_ask": i["lower_ask"], "upper_bid": i["upper_bid"],
+                "gross_edge_cents": round(i["gross_edge"] * 100, 2),
+                "fee_cents": round(i["fee"] * 100, 2),
+                "net_edge_cents": round(i["net_edge"] * 100, 2)}),
             "worst_net_inversion": dated(worst_net_inv, lambda i: {
-                "event_ticker": i.event_ticker,
-                "gross_edge_cents": round(i.gross_edge * 100, 2),
-                "net_edge_cents": round(i.net_edge * 100, 2)}),
+                "event_ticker": i["event_ticker"],
+                "gross_edge_cents": round(i["gross_edge"] * 100, 2),
+                "net_edge_cents": round(i["net_edge"] * 100, 2)}),
             # The two recorders see different universes -- v1 stopped at 2,000
             # events (about 14,000 markets, mostly midterm ladders), v2 sweeps
             # the whole open catalog (about 56,000) -- so a count pooled across
@@ -315,10 +393,11 @@ def summarise(rows: list[dict], paths: list[Path], roots: tuple[str, ...],
                 1 for r in rows if r["poly_era"] != "string_sorted"),
             "pairs_total": sum(ints("poly_pairs")),
             "worst": dated(worst_poly, lambda v: {
-                "market_id": v.market_id, "question": v.question[:140],
-                "prices": list(v.prices), "total": round(v.total, 4),
-                "gross_edge_cents": round(v.gross_edge * 100, 2),
-                "net_edge_cents": round(v.net_edge * 100, 2), "era": v.era}),
+                "market_id": v["market_id"], "question": v["question"][:140],
+                "prices": list(v["prices"]), "total": round(v["total"], 4),
+                "gross_edge_cents": round(v["gross_edge"] * 100, 2),
+                "net_edge_cents": round(v["net_edge"] * 100, 2),
+                "era": v["era"]}),
             "note": "Screened on the venue's quoted outcome-price pair, not "
                     "on two asks: the complementary token's book is not in "
                     "this archive (a recorder gap). A violation is an "
@@ -332,11 +411,11 @@ def summarise(rows: list[dict], paths: list[Path], roots: tuple[str, ...],
             "snapshots_with_violation": sum(
                 1 for r in rows if int(r["predictit_complement_gross"]) > 0),
             "worst": dated(worst_pi, lambda v: {
-                "market_name": v.market_name[:140],
-                "contract_name": v.contract_name[:80],
-                "yes_cost": v.yes_cost, "no_cost": v.no_cost,
-                "gross_edge_cents": round(v.gross_edge * 100, 2),
-                "net_edge_cents": round(v.net_edge * 100, 2)}),
+                "market_name": v["market_name"][:140],
+                "contract_name": v["contract_name"][:80],
+                "yes_cost": v["yes_cost"], "no_cost": v["no_cost"],
+                "gross_edge_cents": round(v["gross_edge"] * 100, 2),
+                "net_edge_cents": round(v["net_edge"] * 100, 2)}),
         },
         "buckets": {
             "screened_median_per_snapshot": _median(ints("bucket_screened")),
@@ -346,10 +425,10 @@ def summarise(rows: list[dict], paths: list[Path], roots: tuple[str, ...],
             "candidates_gross_total": sum(ints("bucket_candidates_gross")),
             "candidates_net_total": sum(ints("bucket_candidates_net")),
             "worst": dated(worst_bucket, lambda c: {
-                "event_ticker": c.event_ticker, "title": c.title[:140],
-                "buckets": c.buckets, "ask_sum": round(c.ask_sum, 4),
-                "gross_edge_cents": round(c.gross_edge * 100, 2),
-                "net_edge_cents": round(c.net_edge * 100, 2)}),
+                "event_ticker": c["event_ticker"], "title": c["title"][:140],
+                "buckets": c["buckets"], "ask_sum": round(c["ask_sum"], 4),
+                "gross_edge_cents": round(c["gross_edge"] * 100, 2),
+                "net_edge_cents": round(c["net_edge"] * 100, 2)}),
             "caveat": buckets_mod.OPEN_UNIVERSE_CAVEAT,
         },
         "fees": {
@@ -368,9 +447,9 @@ def summarise(rows: list[dict], paths: list[Path], roots: tuple[str, ...],
     by_event: dict[str, int] = {}
     net_by_event: dict[str, int] = {}
     for r in rows:
-        for k, v in r["_reports"]["ladders"].inversions_by_event.items():
+        for k, v in r["_detail"]["inversions_by_event"].items():
             by_event[k] = by_event.get(k, 0) + v
-        for lad in r["_reports"]["ladders"].net_inversions:
+        for lad in r["_detail"]["net_inversion_events"]:
             net_by_event[lad] = net_by_event.get(lad, 0) + 1
     summary["ladders"]["net_inversion_events"] = len(net_by_event)
     summary["ladders"]["net_inversion_event_tickers"] = sorted(net_by_event)[:12]
@@ -383,8 +462,8 @@ def summarise(rows: list[dict], paths: list[Path], roots: tuple[str, ...],
     # hit is usually a stale quote.
     seen: dict[str, int] = {}
     for r in rows:
-        for c in r["_reports"]["buckets"].candidates:
-            seen[c.event_ticker] = seen.get(c.event_ticker, 0) + 1
+        for ev in r["_detail"]["bucket_candidate_events"]:
+            seen[ev] = seen.get(ev, 0) + 1
     summary["buckets"]["recurring_candidates"] = [
         {"event_ticker": k, "snapshots": v}
         for k, v in sorted(seen.items(), key=lambda kv: (-kv[1], kv[0]))[:15]]
@@ -1096,6 +1175,11 @@ def main(argv: list[str] | None = None) -> int:
                     help="hand-curated cross-venue pair map")
     ap.add_argument("--limit", type=int, default=0,
                     help="replay only the newest N snapshots (for a smoke run)")
+    ap.add_argument("--cache", default=None,
+                    help=f"per-blob screen cache (e.g. {cache_mod.DEFAULT_CACHE}); "
+                         "a blob whose sha256 has not moved is not re-screened. "
+                         "Off by default: a cold run is the reference, and CI "
+                         "restores the cache with actions/cache")
     ap.add_argument("--no-plots", action="store_true")
     ap.add_argument("--quiet", action="store_true")
     a = ap.parse_args(argv)
@@ -1125,11 +1209,48 @@ def main(argv: list[str] | None = None) -> int:
         print(f"cross-venue pairs: {len(basis_join.pairfile.pairs)} in "
               f"{a.events}, {len(basis_join.pairs)} verified")
 
+    # The joins are the only reason a blob whose screens are cached still
+    # has to be decoded, and between them they look at a few hundred of the
+    # 56,000 markets in one. Handing the loader their key set coerces only
+    # those rows; the join sees exactly what it would have seen.
+    wanted: dict[str, set[str]] = {}
+    for join in (cal_join, basis_join):
+        for venue, keys in join.wanted_keys().items():
+            wanted.setdefault(venue, set()).update(keys)
+
+    cache = cache_mod.ReplayCache.load(a.cache) if a.cache else None
+    if cache is not None and not a.quiet and cache.discarded_reason:
+        print(f"  {cache.discarded_reason}")
+
     rows: list[dict] = []
+    hashes: list[tuple[str, str]] = []
     for i, p in enumerate(paths, 1):
-        rows.append(replay_one(p, observers=(cal_join, basis_join)))
+        key = snapshot_key(p)
+        data = read_blob(p)
+        sha = hashlib.sha256(data).hexdigest()
+        hashes.append((key, sha))
+        hit = cache.get(key, sha) if cache is not None else None
+        if hit is not None:
+            snap = load_snapshot_from_blob(p, data, keep=wanted)
+            for obs in (cal_join, basis_join):
+                obs.observe(snap)
+            row = dict(hit["row"])
+            row["_detail"] = hit["detail"]
+        else:
+            snap = load_snapshot_from_blob(p, data)
+            row = replay_one(p, observers=(cal_join, basis_join), snap=snap)
+            if cache is not None:
+                cache.put(key, sha, {k: row[k] for k in COLUMNS},
+                          row["_detail"])
+        rows.append(row)
         if not a.quiet and (i % 20 == 0 or i == len(paths)):
             print(f"  replayed {i}/{len(paths)}", flush=True)
+
+    if cache is not None:
+        cache.prune({k for k, _ in hashes})
+        cache.save(a.cache)
+        if not a.quiet:
+            print(f"  {cache.describe()}")
 
     cal = cal_join.report()
     bas = basis_join.report()
@@ -1147,7 +1268,8 @@ def main(argv: list[str] | None = None) -> int:
         # keep it as a workflow artifact -- do not quietly start truncating
         # it, because a sampled provenance file is worse than none.
         calibration_mod.write_observations(obs, out / "calibration.csv")
-    summary = summarise(rows, paths, tuple(a.roots), calibration=cal, basis=bas)
+    summary = summarise(rows, paths, tuple(a.roots), calibration=cal, basis=bas,
+                        identity=archive_identity_from_hashes(hashes))
     summary = keep_stamp_if_unchanged(summary, out / "summary.json")
     write_timeseries(rows, out)
     with open(out / "summary.json", "w", encoding="utf-8", newline="\n") as fh:

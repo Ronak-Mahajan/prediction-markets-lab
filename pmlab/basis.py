@@ -148,6 +148,15 @@ def _side_of(raw) -> str:
     return str(raw if raw is not None else "yes").strip().lower()
 
 
+#: Substrings that mean "I have not looked this up yet". A pair carrying
+#: one of these is a note to the curator wearing a market key, and the
+#: loader used to accept it: an unverified pair is never priced, so nothing
+#: failed and the placeholder sat in the file. It is refused here so that
+#: "0 verified of N pairs" never quietly includes a pair that could not be
+#: verified even in principle.
+PLACEHOLDER_MARKERS = ("todo", "tbd", "fixme", "xxx", "???")
+
+
 def _leg_from(obj: dict) -> tuple[Leg | None, str]:
     venue = str(obj.get("venue", "")).strip().lower()
     key = obj.get("key")
@@ -159,6 +168,11 @@ def _leg_from(obj: dict) -> tuple[Leg | None, str]:
         return None, f"unknown venue {venue!r}"
     if key in (None, ""):
         return None, "leg has no key"
+    low = str(key).strip().lower()
+    for marker in PLACEHOLDER_MARKERS:
+        if marker in low:
+            return None, (f"leg key {key!r} is a placeholder, not a market "
+                          f"key; look the market up or drop the pair")
     if side not in ("yes", "no"):
         return None, f"side must be yes or no, not {side!r}"
     return Leg(venue, str(key), side), ""
@@ -353,15 +367,21 @@ class BasisJoin:
         #: the catalog is a curation error, and saying so is the point.
         self._leg_seen: dict[str, set[str]] = {p.id: set() for p in self.pairs}
 
+    def wanted_keys(self) -> dict[str, set[str]]:
+        """``{venue: {key, ...}}`` -- both legs of every verified pair, and
+        nothing else. Empty until a person verifies a pair."""
+        wanted: dict[str, set[str]] = {}
+        for p in self.pairs:
+            for leg in p.legs:
+                wanted.setdefault(leg.venue, set()).add(leg.key)
+        return wanted
+
     def observe(self, snap: Snapshot) -> None:
         self.snapshots_seen += 1
         if not self.pairs:
             return
         index: dict[str, dict[str, dict]] = {}
-        wanted: dict[str, set[str]] = {}
-        for p in self.pairs:
-            for leg in p.legs:
-                wanted.setdefault(leg.venue, set()).add(leg.key)
+        wanted = self.wanted_keys()
         for venue, keys in wanted.items():
             kf = _VENUE_KEY[venue]
             index[venue] = {}
