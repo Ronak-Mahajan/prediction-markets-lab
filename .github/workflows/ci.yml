@@ -19,21 +19,28 @@ jobs:
         run: |
           set -o pipefail
           python -m pip install -r requirements-dev.txt 2>&1 | tee -a ci.log
+          exit ${PIPESTATUS[0]}
       - name: pytest
         run: |
           set -o pipefail
           python -m pytest -q tests 2>&1 | tee -a ci.log
+          exit ${PIPESTATUS[0]}
+      # The stronger checks -- every workflow parses, names a job, and cannot
+      # push to main -- are in tests/test_workflows.py so they also run
+      # locally. This step is the smoke test that the file the runner reads
+      # is the file the tests read.
       - name: workflow files are valid YAML
         run: |
           set -o pipefail
           python - <<'EOF' 2>&1 | tee -a ci.log
           import glob, yaml
           for f in sorted(glob.glob(".github/workflows/*.yml")):
-              with open(f) as fh:
+              with open(f, encoding="utf-8") as fh:
                   d = yaml.safe_load(fh)
               assert "jobs" in d, f
               print("ok", f)
           EOF
+          exit ${PIPESTATUS[0]}
       - name: save failure log
         if: failure() && github.ref != 'refs/heads/main'
         run: |

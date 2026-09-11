@@ -117,10 +117,15 @@ def read_jsonl_dir(d: Path) -> list[dict]:
 
 
 def append_jsonl(path: Path, rows: list[dict]) -> None:
+    # newline="\n" explicitly: this job normally runs on a Linux runner, but
+    # the same file appended to from Windows would grow CRLF lines in the
+    # middle of an LF file and show up as a whole-file diff on the data
+    # branch. A settlement record should read the same wherever it was
+    # written.
     if not rows:
         return
     path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "a", encoding="utf-8") as fh:
+    with open(path, "a", encoding="utf-8", newline="\n") as fh:
         for r in rows:
             fh.write(json.dumps(r, separators=(",", ":"), sort_keys=True) + "\n")
 
@@ -139,7 +144,7 @@ def save_json(path: Path, obj) -> None:
         with gzip.open(path, "wt", encoding="utf-8") as fh:
             json.dump(obj, fh, separators=(",", ":"), sort_keys=True)
     else:
-        with open(path, "w", encoding="utf-8") as fh:
+        with open(path, "w", encoding="utf-8", newline="\n") as fh:
             json.dump(obj, fh, indent=1, sort_keys=True)
             fh.write("\n")
 
