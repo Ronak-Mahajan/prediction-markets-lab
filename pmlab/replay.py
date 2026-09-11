@@ -1135,6 +1135,17 @@ def main(argv: list[str] | None = None) -> int:
     bas = basis_join.report()
     obs = cal_join.observations()
     if obs:
+        # One row per scored forecast, so every table above can be
+        # re-derived without re-reading the archive.
+        #
+        # KNOWN LIMIT, named before it bites: this file grows with the
+        # number of settled markets, not with the number of snapshots, and
+        # settlements only accumulate. 4,587 rows is 257 KB; the midterm
+        # cohort alone is thousands of Kalshi ladder markets, and the file
+        # is rewritten in full and committed on every run. When it passes a
+        # few megabytes, either write it gzipped or stop committing it and
+        # keep it as a workflow artifact -- do not quietly start truncating
+        # it, because a sampled provenance file is worse than none.
         calibration_mod.write_observations(obs, out / "calibration.csv")
     summary = summarise(rows, paths, tuple(a.roots), calibration=cal, basis=bas)
     summary = keep_stamp_if_unchanged(summary, out / "summary.json")
