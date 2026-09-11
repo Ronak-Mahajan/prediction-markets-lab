@@ -115,6 +115,26 @@ regenerates all of it on every push and daily after the recorder, and
 disagrees with `results/summary.json` — which is exactly how "44 ladders"
 went stale unnoticed. Every figure below is regenerated, not typed.
 
+The replay re-reads the whole archive every run, and the archive only
+grows, so `--cache` makes it incremental: a snapshot's coherence counts
+are a function of that snapshot's bytes alone, and a blob whose sha256
+has not moved is not screened again. On the 123-snapshot archive that is
+111 s down to 36 s, with `timeseries.csv`, `summary.json` and
+`calibration.csv` byte-identical to a cold run — which is the only claim
+worth making about a cache, and `tests/test_incremental.py` pins it in
+both directions. The cache discards itself whenever any module in
+`pmlab/` changes, so it can never serve a number produced by code that no
+longer exists.
+
+What it deliberately does **not** skip is reading the blob. The
+settlement join is not a function of one snapshot — a market settling
+tomorrow is scored against a quote recorded weeks ago — so every blob is
+still decoded and only the rows the join can use are coerced. That leaves
+the gzip and JSON decode, about 0.8 s per recorder-v2 snapshot, as the
+part that still grows with the archive; the next step, when the job
+approaches its ten-minute budget again, is a per-blob quote index written
+once and read instead of the blob.
+
 **Archive replayed:** 123 <!-- results:archive.snapshots --> snapshots
 from 2026-08-23 to 2026-09-11 — 19.8 <!-- results:archive.days_spanned -->
 days, realised cadence median 3.3 <!-- results:archive.median_gap_hours -->
@@ -161,12 +181,17 @@ already more interesting:
 3 <!-- results:ladders.inversions_net_total --> inversions survive the fee,
 all in 1 <!-- results:ladders.net_inversion_events --> event —
 `KXINXMINY-01JAN2027`, the "minimum S&P 500 value by Jan 1 2027" ladder,
-where P(min ≤ 6,000) was quoted *above* P(min ≤ 6,100) in all three
-snapshots (0.4c to 1.0c net). That is a persistent, executable-at-the-touch
-violation on a live index ladder, and it is only visible because v2 lifted
-the 2,000-event cap. It also sits in exactly the family whose reduced fee
-multiplier this repo has not read yet: if a reduced rate applies to the
-`KXINX*` series, the net edge is **larger** than reported here, not smaller.
+where the bid on P(min ≤ 6,000.01) stood *above* the ask on
+P(min ≤ 6,100.01) even though the first outcome implies the second. It
+shows up in 3 <!-- results:ladders.snapshots_with_net_inversion --> of
+those snapshots and not in the ones after them, 0.4c to 1.0c net: three
+consecutive readings spanning under three hours on one day is an
+observation, not a rate, and it needs weeks of v2 recording before it is
+a result. What it is not is invisible — it is in the catalog at all only
+because v2 lifted the 2,000-event cap. It also sits in exactly the family
+whose reduced fee multiplier this repo has not read yet: if a reduced rate
+applies to the `KXINX*` series, the net edge is **larger** than reported
+here, not smaller.
 
 Two false positives were removed before publishing these counts, both
 worth naming because the structured fields invited them: `KXNFLSPREAD`
@@ -260,13 +285,26 @@ So every pair carries `verified: true|false`, **unverified pairs are
 counted and never priced**, and a pair claiming verification without a
 `checked_on` date is rejected by the loader. The file ships as a skeleton
 of 4 <!-- results:basis.pairs_total --> example pairs, of which
-0 <!-- results:basis.pairs_verified --> are verified today; each one
-names the specific thing a person has to go and check, and three of them
-are there precisely because they look like pairs and are not ("shutdown
-**on** Oct 1" against "shutdown **by** Oct 1"; a threshold on the fed
-funds level against a statement about the change). Manifold legs are
-rejected outright: it is play money, so a dollar basis against it is not
-a dollar.
+0 <!-- results:basis.pairs_verified --> are verified today. Each one
+names the specific thing a person has to go and check, and every one of
+them is there precisely because it looks like a pair and is not yet known
+to be one: "shutdown **on** Oct 1" against "shutdown **by** Oct 1"; a
+threshold on the fed funds level against a statement about the change; a
+Nobel prize announced in October against a Kalshi market that trades
+until December. Manifold legs are rejected outright: it is play money, so
+a dollar basis against it is not a dollar.
+
+Two things the file learned the hard way, because an unverified pair is
+never priced and so nothing ever failed on either. Its Nobel pair named a
+Kalshi ticker that had been *guessed* at (`KXNOBELPEACE-27-EMUS`) and
+appears in no recorded snapshot; the real one, read out of the
+2026-09-11T20:03Z catalog, is `KXNOBELPEACE-26-ELO`. And its recession
+pair carried the literal string `TODO-find-the-nber-market-id` where a
+Polymarket market id belongs — no recorded Polymarket or PredictIt row
+settles on the NBER announcement, so that pair is dropped and the reason
+is written where it stood. `pmlab/basis.py` now refuses any leg key
+containing `TODO`/`TBD`/`FIXME`, so a placeholder cannot sit inside the
+count again.
 
 Until a pair is verified, [`results/README.md`](results/README.md) prints
 an empty basis table with that reason attached. That is the honest output,
@@ -427,6 +465,8 @@ python screen.py                      # coherence report on the newest snapshot
 python -m pmlab.replay                # every screen over every snapshot -> results/
 python -m pmlab.replay --roots data --no-plots    # no matplotlib needed
 python -m pmlab.replay --settlements archive/settlements --events events.yaml
+python -m pmlab.replay --cache .replaycache/replay.json.gz   # do not re-screen
+                                      # unchanged blobs; identical bytes out
 python scripts/check_readme.py        # do this file's numbers still match results/?
 python -m pytest -q tests             # schema, settlement, fee and screen tests
 ```
