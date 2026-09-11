@@ -1,0 +1,11 @@
+{
+ "backfill_cursor": "2026-09-06T03:42:08+00:00",
+ "backfilled": false,
+ "last_cap_hit": true,
+ "last_kept": 118,
+ "last_mode": "backfill",
+ "last_pages": 400,
+ "last_run": "2026-09-11T15:42:08+00:00",
+ "last_scanned": 395230,
+ "watermark": "2026-09-11T15:41:18+00:00"
+}
