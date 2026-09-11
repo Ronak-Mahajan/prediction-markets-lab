@@ -98,6 +98,11 @@ def _median(xs: list[float]) -> float | None:
     return statistics.median(xs) if xs else None
 
 
+def _schema_of(row: dict) -> int:
+    """1 for a recorder-v1 snapshot, 2 for anything schema-2 or later."""
+    return 1 if int(row["schema"]) < 2 else 2
+
+
 def replay_one(path: Path) -> dict:
     """Every screen on one snapshot -> one flat row of counts."""
     snap = load_snapshot(path)
@@ -254,6 +259,22 @@ def summarise(rows: list[dict], paths: list[Path], roots: tuple[str, ...]) -> di
                 "event_ticker": i.event_ticker,
                 "gross_edge_cents": round(i.gross_edge * 100, 2),
                 "net_edge_cents": round(i.net_edge * 100, 2)}),
+            # The two recorders see different universes -- v1 stopped at 2,000
+            # events (about 14,000 markets, mostly midterm ladders), v2 sweeps
+            # the whole open catalog (about 56,000) -- so a count pooled across
+            # them is a count of two different experiments. Split, always.
+            "by_recorder": {
+                f"schema{k}": {
+                    "snapshots": sum(1 for r in rows if _schema_of(r) == k),
+                    "adjacent_pairs": sum(int(r["ladder_adjacent_pairs"])
+                                          for r in rows if _schema_of(r) == k),
+                    "inversions_gross": sum(int(r["ladder_inversions_gross"])
+                                            for r in rows if _schema_of(r) == k),
+                    "inversions_net": sum(int(r["ladder_inversions_net"])
+                                          for r in rows if _schema_of(r) == k),
+                }
+                for k in (1, 2)
+            },
         },
         "polymarket_complement": {
             "pairs_median_per_snapshot": _median(ints("poly_pairs")),
@@ -326,6 +347,24 @@ def summarise(rows: list[dict], paths: list[Path], roots: tuple[str, ...]) -> di
                 fees_mod.KALSHI_REDUCED_TAKER_MULTIPLIER),
         },
     }
+    # Where the inversions live. 21 events out of a catalog of 2,000 carried
+    # every one of them in the first replay, and they were long-dated Fed
+    # funds and CPI ladders -- the rungs nobody trades. That concentration is
+    # the finding; the raw count is not.
+    by_event: dict[str, int] = {}
+    net_by_event: dict[str, int] = {}
+    for r in rows:
+        for k, v in r["_reports"]["ladders"].inversions_by_event.items():
+            by_event[k] = by_event.get(k, 0) + v
+        for lad in r["_reports"]["ladders"].net_inversions:
+            net_by_event[lad] = net_by_event.get(lad, 0) + 1
+    summary["ladders"]["net_inversion_events"] = len(net_by_event)
+    summary["ladders"]["net_inversion_event_tickers"] = sorted(net_by_event)[:12]
+    summary["ladders"]["inversion_events"] = len(by_event)
+    summary["ladders"]["top_inversion_events"] = [
+        {"event_ticker": k, "inversions": v}
+        for k, v in sorted(by_event.items(), key=lambda kv: (-kv[1], kv[0]))[:12]]
+
     # Recurring candidates are the ones worth a human read; a one-snapshot
     # hit is usually a stale quote.
     seen: dict[str, int] = {}
@@ -452,6 +491,33 @@ def render_results_readme(s: dict) -> str:
           f"strike {i['upper_threshold']:g} bid {i['upper_bid']:.2f} -- "
           f"{i['gross_edge_cents']:.1f}c gross, {i['fee_cents']:.1f}c of fee "
           f"on the two legs, {i['net_edge_cents']:.1f}c net.")
+        w("")
+    br = lad.get("by_recorder") or {}
+    if br:
+        w("Recorder v1 stopped at 2,000 events (about 14,000 markets, mostly "
+          "the two midterm ladder families); recorder v2 sweeps the whole open "
+          "catalog (about 56,000). Pooling the two counts a different "
+          "experiment twice, so they are split:")
+        w("")
+        w("| recorder | snapshots | adjacent pairs | inversions gross | net of fee |")
+        w("|---|---|---|---|---|")
+        for k, label in (("schema1", "v1 (2,000-event cap)"),
+                         ("schema2", "v2 (full catalog)")):
+            d = br.get(k) or {}
+            w(f"| {label} | {_fmt(d.get('snapshots'))} "
+              f"| {_fmt(d.get('adjacent_pairs'))} "
+              f"| {_fmt(d.get('inversions_gross'))} "
+              f"| {_fmt(d.get('inversions_net'))} |")
+        w("")
+    if lad.get("top_inversion_events"):
+        w(f"Those {_fmt(lad['inversions_gross_total'])} inversions are not "
+          f"spread across the catalog: they fall in "
+          f"{_fmt(lad['inversion_events'])} events.")
+        w("")
+        w("| event | gross inversions |")
+        w("|---|---|")
+        for e in lad["top_inversion_events"][:10]:
+            w(f"| `{e['event_ticker']}` | {_fmt(e['inversions'])} |")
         w("")
     w("The inversion screen is at the touch and is executable by "
       "construction: sell the higher strike at its bid, buy the lower at its "

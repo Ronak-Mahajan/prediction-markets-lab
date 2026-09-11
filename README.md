@@ -113,80 +113,120 @@ honest fee accounting, and for how long? That series is
 regenerates all of it on every push and daily after the recorder, and
 `scripts/check_readme.py` fails the build if a number in this file
 disagrees with `results/summary.json` — which is exactly how "44 ladders"
-went stale unnoticed. Every figure below therefore carries the archive it
-was measured on.
+went stale unnoticed. Every figure below is regenerated, not typed.
 
-**Archive replayed:** 119 <!-- results:archive.snapshots --> snapshots,
-2026-08-23 to 2026-09-11, 19.6 <!-- results:archive.days_spanned -->
-days, realised cadence median
-3.4 <!-- results:archive.median_gap_hours --> h.
+**Archive replayed:** 120 <!-- results:archive.snapshots --> snapshots
+from 2026-08-23 to 2026-09-11 — 19.7 <!-- results:archive.days_spanned -->
+days, realised cadence median 3.3 <!-- results:archive.median_gap_hours -->
+h — of which 117 <!-- results:archive.schema1_snapshots --> come from
+recorder v1 and 3 <!-- results:archive.schema2_snapshots --> from v2.
 
-**Ladders.** A median of
-1,120 <!-- results:ladders.median_per_snapshot --> threshold ladders per
-snapshot (7,975 <!-- results:ladders.rungs_median_per_snapshot --> rungs)
-give 854,961 <!-- results:ladders.adjacent_pairs_total --> adjacent
-strike pairs tested across the archive.
-306 <!-- results:ladders.inversions_gross_total --> of them are gross
-monotonicity inversions — a higher strike bid over a lower strike's ask —
-spread over 64 <!-- results:ladders.snapshots_with_gross_inversion --> of
-the 119 <!-- results:archive.snapshots --> snapshots.
-**6 <!-- results:ladders.inversions_net_total --> survive the venue's
-taker fee.** The widest gross edge in the whole archive was 3.0c, on a
-Fed-funds ladder, against 4.0c of fee on the two legs. The fee model is
-the published formula *with the published rounding* — ceil to the cent
-per order, so the smallest fee on any risky contract is a full cent and a
-two-legged trade starts two cents behind. The old screen charged the
-unrounded `0.07·p·(1-p)`, which at a one-cent contract is fourteen times
-too little, and that is the entire difference between "a one-cent edge
+### Ladders
+
+The two recorders see different universes: v1 stopped at 2,000 events
+(about 14,000 markets, dominated by the two midterm ladder families), v2
+sweeps the whole open catalog (about 56,000). Pooling them counts two
+different experiments as one, so the headline is split.
+
+| recorder | snapshots | adjacent strike pairs tested | inversions gross | net of fee |
+|---|---|---|---|---|
+| v1 (2,000-event cap) | 117 <!-- results:ladders.by_recorder.schema1.snapshots --> | 804,708 <!-- results:ladders.by_recorder.schema1.adjacent_pairs --> | 291 <!-- results:ladders.by_recorder.schema1.inversions_gross --> | 0 <!-- results:ladders.by_recorder.schema1.inversions_net --> |
+| v2 (full catalog) | 3 <!-- results:ladders.by_recorder.schema2.snapshots --> | 74,659 <!-- results:ladders.by_recorder.schema2.adjacent_pairs --> | 12 <!-- results:ladders.by_recorder.schema2.inversions_gross --> | 3 <!-- results:ladders.by_recorder.schema2.inversions_net --> |
+
+An inversion is a higher strike bid over a lower strike's ask: sell the
+higher, buy the lower, and the pair pays whatever happens, because the
+higher strike cannot settle YES while the lower settles NO. Gross counts
+the quote; net charges the venue's taker fee on both legs with the
+venue's rounding — ceil to the cent, **per order**, so the smallest fee
+on any risky contract is a full cent and a two-legged trade starts two
+cents behind. The old screen charged the unrounded `0.07·p·(1-p)`, which
+at a one-cent contract is fourteen times too little; that single
+correction is the whole difference between "a one-cent inversion
 survives" and "it does not".
+
+Over the nineteen days of v1 data the answer is a clean negative: every
+one of the 291 <!-- results:ladders.by_recorder.schema1.inversions_gross -->
+gross inversions was one to three cents wide against two to four cents of
+fee, and they were not spread across the catalog either — the archive's
+303 <!-- results:ladders.inversions_gross_total --> gross inversions fall
+in 26 <!-- results:ladders.inversion_events --> events, overwhelmingly the
+long-dated `KXFEDFUNDSYEAR-3x` and `KXUSCPIYEAR` ladders that settle years
+out and that nobody is minding.
+
+The v2 slice is three snapshots over three hours and is reported as the
+preliminary thing it is, but it is already more interesting:
+3 <!-- results:ladders.inversions_net_total --> inversions survive the fee,
+all in 1 <!-- results:ladders.net_inversion_events --> event —
+`KXINXMINY-01JAN2027`, the "minimum S&P 500 value by Jan 1 2027" ladder,
+where P(min ≤ 6,000) was quoted *above* P(min ≤ 6,100) in all three
+snapshots (0.4c to 1.0c net). That is a persistent, executable-at-the-touch
+violation on a live index ladder, and it is only visible because v2 lifted
+the 2,000-event cap. It also sits in exactly the family whose reduced fee
+multiplier this repo has not read yet: if a reduced rate applies to the
+`KXINX*` series, the net edge is **larger** than reported here, not smaller.
+
+Two false positives were removed before publishing these counts, both
+worth naming because the structured fields invited them: `KXNFLSPREAD`
+lists both teams' spreads in one event with `strike_type="greater"` on
+every market, and `KXSTARSHIPSPACE` lists "exactly 5", "exactly 6" as
+`strike_type="less"` with `floor_strike == cap_strike` — byte-identical to
+a real "6,300 or below" CDF rung. Grouping on
+`(event_ticker, strike_type)` alone read a 35c and a 46c "arbitrage" out
+of markets that can both settle YES. Rungs now also have to agree on the
+shape of their sub-title, and a rung whose sub-title is a bare number is
+refused.
 
 At mids rather than at the touch, the same ladders imply negative
 probability mass between adjacent strikes
-14,417 <!-- results:ladders.negative_mass_gross_total --> times. That is
-a statement about where quotes are marked, not a trade, and the two
-numbers are kept apart on purpose.
+15,192 <!-- results:ladders.negative_mass_gross_total --> times. That is a
+statement about where quotes are marked, not a trade, and the two numbers
+are kept apart on purpose.
 
-**Complement.** Kalshi is not screened, because it cannot fire there:
+### Complement
+
+Kalshi is not screened, because the screen cannot fire there:
 `no_ask == 1 - yes_bid` held on
-1,572,862 <!-- results:kalshi_identity.books_checked_total --> of
-1,572,862 <!-- results:kalshi_identity.books_checked_total --> two-sided
+1,618,215 <!-- results:kalshi_identity.books_checked_total --> of
+1,618,215 <!-- results:kalshi_identity.books_checked_total --> two-sided
 books, 0 <!-- results:kalshi_identity.deviations_total --> deviations, so
 YES ask + NO ask is 1 + spread by construction. The replay asserts the
-identity and fails if it ever breaks. Where the screen can fire:
-58,197 <!-- results:predictit_complement.pairs_total --> PredictIt
-YES/NO ask pairs give
-0 <!-- results:predictit_complement.gross_total --> violations gross, and
-111,386 <!-- results:polymarket_complement.pairs_total --> Polymarket
-quoted outcome pairs give
-43 <!-- results:polymarket_complement.gross_total --> — all
-43 <!-- results:polymarket_complement.gross_string_sorted_era --> of them
-inside the string-sorted era, and
-0 <!-- results:polymarket_complement.gross_numeric_era --> in the
-51 <!-- results:polymarket_complement.snapshots_numeric_era --> clean
-snapshots. The incoherent quotes are in the rows the recorder's broken
-sort surfaced, which makes that a finding about this repo rather than
-about Polymarket.
+identity and fails the build if it ever breaks — a venue changing its data
+model is a thing to look at, not a result to publish.
 
-**Bucket sums.** A median of
-228 <!-- results:buckets.screened_median_per_snapshot --> mutually
-exclusive events per snapshot are fully quoted;
+Where the screen can fire:
+58,693 <!-- results:predictit_complement.pairs_total --> PredictIt YES/NO
+ask pairs give 0 <!-- results:predictit_complement.gross_total -->
+violations gross. 112,273 <!-- results:polymarket_complement.pairs_total -->
+Polymarket quoted outcome pairs give
+43 <!-- results:polymarket_complement.gross_total -->, and all
+43 <!-- results:polymarket_complement.gross_string_sorted_era --> of them
+are inside the string-sorted era, against
+0 <!-- results:polymarket_complement.gross_numeric_era --> in the
+52 <!-- results:polymarket_complement.snapshots_numeric_era --> clean
+snapshots. The incoherent quotes are in the thin, often already-expired
+rows the recorder's broken sort surfaced, which makes that a finding about
+this repo rather than about Polymarket.
+
+### Bucket sums
+
+A median of 228 <!-- results:buckets.screened_median_per_snapshot -->
+mutually exclusive events per snapshot are fully quoted;
 20 <!-- results:buckets.candidates_gross_median --> of them sum below a
 dollar gross and 8 <!-- results:buckets.candidates_net_median --> net of
-fees. The same tickers recur in all
-119 <!-- results:archive.snapshots --> snapshots — next pope, 51st state,
+fees. The same tickers recur in every snapshot — next pope, 51st state,
 party nominations, Moldovan president — which is the open-universe trap
 this screen exists to name rather than fall into: the missing "someone
 else" bucket is the missing mass.
 
-**The one-line answer, dated 2026-09-11.** Over
-119 <!-- results:archive.snapshots --> snapshots and
-19.6 <!-- results:archive.days_spanned --> days of four venues'
-top-of-book quotes, honest fee accounting erases every coherence
-violation the screens can find: 291 gross ladder inversions go to zero,
-the only complement violations are in known-bad recorder output, and the
-bucket-sum survivors are exactly the events whose buckets are not
-exhaustive. That is a negative result, and it is published at the size a
-positive one would get.
+### The one-line answer, dated 2026-09-11
+
+Over nineteen days of recorder-v1 quotes — 804,708 adjacent strike pairs,
+58,693 PredictIt pairs, 112,273 Polymarket pairs, 28,974 screened
+bucket-sum events — honest fee accounting erases every coherence violation
+the screens can find. The only surviving exception appeared the moment the
+recorder stopped truncating the catalog: one S&P-500-minimum ladder,
+inverted by 0.4c to 1.0c net of fee, in all three v2 snapshots so far.
+Both halves of that sentence get published at the same size.
 
 ### Still to come in Phase 2
 
