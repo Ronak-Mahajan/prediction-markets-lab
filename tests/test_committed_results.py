@@ -286,7 +286,9 @@ def test_no_scored_quote_is_newer_than_its_horizon_allows():
     cal, rows = _forecasts()
     horizons = {h["label"]: h["days"] for h in cal["horizons"]}
     cap = cal["max_quote_age_hours"]
+    # quote_age_hours is written to three decimals, so allow the rounding.
+    slack = 1e-3
     for r in rows:
         hours = float(r["quote_age_hours"])
         days = horizons[r["horizon"]]
-        assert days * 24.0 <= hours <= days * 24.0 + cap + 1e-6, r["key"]
+        assert days * 24.0 - slack <= hours <= days * 24.0 + cap + slack, r["key"]
