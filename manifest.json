@@ -1,1 +1,15 @@
-{"schema": 1, "snapshot_count": 0, "blobs": {}}
+{
+ "schema": 1,
+ "updated": "2026-09-11T15:40:42+00:00",
+ "snapshot_count": 1,
+ "first": "data/20260911/1539Z.json.gz",
+ "last": "data/20260911/1539Z.json.gz",
+ "total_bytes": 2760015,
+ "manifest_sha256": "f27072895f352bfd07d509067ecc6b00400468fd21ab41bea252e6bc7131d4f9",
+ "blobs": {
+  "data/20260911/1539Z.json.gz": {
+   "sha256": "b62b59593ebcef0a57f2b375f4fd7e265ad84d77479a7abb0f6c556a1b0d694e",
+   "bytes": 2760015
+  }
+ }
+}
