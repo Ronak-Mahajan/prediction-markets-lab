@@ -18,9 +18,28 @@ fee with the venue's own rounding; the gap between the two is the result:
                         is asserted rather than reported
 - ``pmlab.buckets``     mutually-exclusive bucket sums, with the
                         open-universe caveat attached to every number
-- ``pmlab.replay``      the CLI that runs all of it over every snapshot and
-                        writes ``results/``
+
+Analysis (Phase 3). These ask whether the prices were *right* rather than
+whether they were coherent, so both need something outside the quotes --
+settlements for one, a person's judgement for the other -- and both are
+built to run cleanly and report why when that thing is not there yet:
+
+- ``pmlab.calibration`` settlements joined to the last quote at each
+                        horizon before settlement; Brier and log score
+                        against a 50/50 baseline, reliability curves with
+                        Wilson and block-bootstrap intervals, and
+                        favourite-longshot bias on the bid and on the ask
+                        separately, sliced by venue, category, horizon and
+                        liquidity
+- ``pmlab.basis``       the hand-curated ``events.yaml`` map of events that
+                        genuinely trade on two venues, and the fee-adjusted
+                        basis distribution and half-life per pair
+
+- ``pmlab.replay``      the CLI that runs all of it over every snapshot in
+                        one pass and writes ``results/``
 
 Everything here is standard library except the replay's optional
-matplotlib figures (``python -m pmlab.replay --no-plots`` skips them).
+matplotlib figures (``python -m pmlab.replay --no-plots`` skips them) and
+``pmlab.basis``'s YAML reader, whose absence is reported rather than
+silently treated as an empty map.
 """

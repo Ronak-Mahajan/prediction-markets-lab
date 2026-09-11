@@ -1,0 +1,143 @@
+# Cross-venue event map for pmlab.basis  --  HAND-CURATED, NOT GENERATED.
+#
+# THE CURATION RULE
+# -----------------
+# A pair goes in this file only when BOTH of these are true, read off both
+# venues' own rules pages by a person:
+#
+#   1. IDENTICAL ENTITY. The two markets resolve YES on exactly the same
+#      world-state. Not a similar one, not an implied one. "Fed raises by
+#      25 bp" and "fed funds rate above 3.75%" are different questions even
+#      when they quote within a cent of each other.
+#   2. IDENTICAL DEADLINE. The two markets stop trading and settle on the
+#      same event at the same moment. "Government shutdown ON Oct 1" and
+#      "government shutdown BY Oct 1" are different questions.
+#
+# NO FUZZY MATCHING. This file is hand-written because automatic matching
+# was measured and does not work: on the archive's first snapshot, exact
+# title matching across every venue pair gives ZERO pairs; token-Jaccard at
+# 0.75 gives ONE pair and it is wrong (Polymarket's "next cabinet member to
+# leave" against Kalshi's "first cabinet member to leave"); a PredictIt /
+# Kalshi keyword overlap gives 28 of 187 and matches party-wins markets
+# against margin-of-victory ladders. A wrong pair does not produce a small
+# error, it produces a basis that is entirely an artefact.
+#
+# verified: false  ->  carried as a to-do, counted in results, NEVER priced.
+# verified: true   ->  requires checked_by and checked_on; the loader
+#                      rejects a pair claiming verification with no date.
+#
+# Every pair below is a SKELETON EXAMPLE and is deliberately unverified.
+# Each one names the specific thing a person has to go and check. Manifold
+# is not eligible at all: it is play money, so a dollar basis against it is
+# not a dollar, and the loader rejects a Manifold leg.
+#
+# Keys: Kalshi = market ticker, Polymarket = numeric market id (the one the
+# gamma API and the archive use), PredictIt = contract id.
+# side: "yes" (default) or "no" when the venue lists the mirror question.
+
+version: 1
+
+pairs:
+  - id: fed-2026-09-hike-25bp
+    question: >-
+      Fed funds target after the September 2026 FOMC meeting.
+    deadline: "2026-09-16T17:55:00Z"
+    verified: false
+    note: >-
+      NOT YET A PAIR, and a good example of why this file is hand-written.
+      Kalshi KXFED-26SEP-T3.75 is "above 3.75%", a threshold on the level;
+      Polymarket 2252245 is "increase by 25 bps", a statement about the
+      change. On 2026-09-11 they quoted 0.80/0.81 and 0.81/0.82, close
+      enough to look like a matched pair and produce a basis that is really
+      a difference in question. Before verifying, check the current target
+      range and whether "above 3.75%" and "+25 bp" pick out the same
+      outcome; if the range moves, the correspondence breaks mid-life.
+    legs:
+      - venue: kalshi
+        key: KXFED-26SEP-T3.75
+        side: "yes"
+      - venue: polymarket
+        key: "2252245"
+        side: "yes"
+
+  - id: fed-2026-09-hike-any
+    question: >-
+      Any Fed rate hike at or before the September 2026 meeting.
+    deadline: "2026-09-16T17:55:00Z"
+    verified: false
+    note: >-
+      Deadline mismatch to resolve first: the Kalshi market closes
+      2026-09-16T17:55Z on the meeting, while Polymarket 1808547 carries
+      endDate 2026-12-09. A market that settles on the same event but stops
+      trading months apart is still a pair; a market that can settle on a
+      LATER hike is not. Read Polymarket's resolution text before
+      verifying.
+    legs:
+      - venue: kalshi
+        key: KXFED-26SEP-T3.75
+        side: "yes"
+      - venue: polymarket
+        key: "1808547"
+        side: "yes"
+
+  - id: govt-shutdown-2026-10-01
+    question: >-
+      US federal government shutdown around 2026-10-01.
+    deadline: "2026-10-01T14:00:00Z"
+    verified: false
+    note: >-
+      Kalshi KXGOVTSHUTDOWN-26OCT01 asks whether the government is shut
+      down ON Oct 1; PredictIt 35177 asks whether it shuts down BY Oct 1.
+      A shutdown that starts and ends in September settles the PredictIt
+      contract YES and the Kalshi one NO. These are the two cheapest words
+      in this file to miss and the most expensive to get wrong.
+    legs:
+      - venue: kalshi
+        key: KXGOVTSHUTDOWN-26OCT01
+        side: "yes"
+      - venue: predictit
+        key: "35177"
+        side: "yes"
+
+  - id: nobel-peace-2026-musk
+    question: >-
+      Elon Musk wins the 2026 Nobel Peace Prize.
+    deadline: "2026-10-10T00:00:00Z"
+    verified: false
+    note: >-
+      The entity matches cleanly, the catalog does not. Polymarket 637007
+      is in the archive; the Kalshi ticker below is a GUESS at the suffix
+      and no KXNOBELPEACE-27 market for this entity appears in any recorded
+      snapshot (the eight that do are Sharif, UNRWA, Pope Leo XIV, the ICC,
+      the CPJ, Save the Children, Kuleba and Navalnaya). Look the real
+      ticker up on the venue and correct it, or drop the pair. Also check
+      the announcement-versus-settlement dates: Polymarket ends 2026-10-10,
+      Kalshi's event closes 2027-01-01.
+    legs:
+      - venue: kalshi
+        key: KXNOBELPEACE-27-EMUS
+        side: "yes"
+      - venue: polymarket
+        key: "637007"
+        side: "yes"
+
+  - id: recession-2027-nber
+    question: >-
+      NBER-dated US recession beginning in 2027.
+    deadline: "2028-01-31T13:25:00Z"
+    verified: false
+    note: >-
+      Kalshi KXRECSSNBER-27 settles on the NBER business cycle dating
+      committee's announcement, which can arrive more than a year after the
+      fact. No counterpart is in the recorded Polymarket or PredictIt
+      slices as of 2026-09-11, so the second leg below is a placeholder:
+      find a market that settles on the SAME NBER announcement, not on a
+      two-quarter GDP rule, or drop the pair. Two different definitions of
+      "recession" priced against each other is a basis in the definition.
+    legs:
+      - venue: kalshi
+        key: KXRECSSNBER-27
+        side: "yes"
+      - venue: polymarket
+        key: "TODO-find-the-nber-market-id"
+        side: "yes"

@@ -611,6 +611,8 @@ def test_replay_over_a_synthetic_archive(tmp_path):
                              "2026-09-01T04:00:00Z", inverted=True)
     out = tmp_path / "results"
     rc = replay_mod.main(["--roots", str(root), "--out", str(out),
+                          "--settlements", str(tmp_path / "no-settlements"),
+                          "--events", str(tmp_path / "no-events.yaml"),
                           "--no-plots", "--quiet"])
     assert rc == 0
     with open(out / "summary.json", encoding="utf-8") as fh:
@@ -652,8 +654,10 @@ def test_replay_fails_loudly_on_a_broken_kalshi_identity(tmp_path):
         json.dump(doc, fh)
     with pytest.raises(complement.BrokenInvariant):
         replay_mod.main(["--roots", str(tmp_path / "data"),
-                         "--out", str(tmp_path / "out"), "--no-plots",
-                         "--quiet"])
+                         "--out", str(tmp_path / "out"),
+                         "--settlements", str(tmp_path / "no-settlements"),
+                         "--events", str(tmp_path / "no-events.yaml"),
+                         "--no-plots", "--quiet"])
 
 
 def test_replay_is_byte_stable_across_runs(tmp_path):
