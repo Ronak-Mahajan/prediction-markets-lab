@@ -115,11 +115,11 @@ regenerates all of it on every push and daily after the recorder, and
 disagrees with `results/summary.json` — which is exactly how "44 ladders"
 went stale unnoticed. Every figure below is regenerated, not typed.
 
-**Archive replayed:** 121 <!-- results:archive.snapshots --> snapshots
-from 2026-08-23 to 2026-09-11 — 19.7 <!-- results:archive.days_spanned -->
+**Archive replayed:** 122 <!-- results:archive.snapshots --> snapshots
+from 2026-08-23 to 2026-09-11 — 19.8 <!-- results:archive.days_spanned -->
 days, realised cadence median 3.3 <!-- results:archive.median_gap_hours -->
 h — of which 117 <!-- results:archive.schema1_snapshots --> come from
-recorder v1 and 4 <!-- results:archive.schema2_snapshots --> from v2.
+recorder v1 and 5 <!-- results:archive.schema2_snapshots --> from v2.
 
 ### Ladders
 
@@ -131,7 +131,7 @@ different experiments as one, so the headline is split.
 | recorder | snapshots | adjacent strike pairs tested | inversions gross | net of fee |
 |---|---|---|---|---|
 | v1 (2,000-event cap) | 117 <!-- results:ladders.by_recorder.schema1.snapshots --> | 804,708 <!-- results:ladders.by_recorder.schema1.adjacent_pairs --> | 291 <!-- results:ladders.by_recorder.schema1.inversions_gross --> | 0 <!-- results:ladders.by_recorder.schema1.inversions_net --> |
-| v2 (full catalog) | 4 <!-- results:ladders.by_recorder.schema2.snapshots --> | 99,067 <!-- results:ladders.by_recorder.schema2.adjacent_pairs --> | 15 <!-- results:ladders.by_recorder.schema2.inversions_gross --> | 3 <!-- results:ladders.by_recorder.schema2.inversions_net --> |
+| v2 (full catalog) | 5 <!-- results:ladders.by_recorder.schema2.snapshots --> | 123,507 <!-- results:ladders.by_recorder.schema2.adjacent_pairs --> | 17 <!-- results:ladders.by_recorder.schema2.inversions_gross --> | 3 <!-- results:ladders.by_recorder.schema2.inversions_net --> |
 
 An inversion is a higher strike bid over a lower strike's ask: sell the
 higher, buy the lower, and the pair pays whatever happens, because the
@@ -150,12 +150,12 @@ gross inversions was wider than three cents, against the two to four
 cents of fee the two legs cost (a taker leg can never cost more than two
 cents, and never less than one), and they were not spread across the
 catalog either — the archive's
-306 <!-- results:ladders.inversions_gross_total --> gross inversions fall
+308 <!-- results:ladders.inversions_gross_total --> gross inversions fall
 in 27 <!-- results:ladders.inversion_events --> events, overwhelmingly the
 long-dated `KXFEDFUNDSYEAR-3x` and `KXUSCPIYEAR` ladders that settle years
 out and that nobody is minding.
 
-The v2 slice is 4 <!-- results:ladders.by_recorder.schema2.snapshots -->
+The v2 slice is 5 <!-- results:ladders.by_recorder.schema2.snapshots -->
 snapshots so far and is reported as the preliminary thing it is, but it is
 already more interesting:
 3 <!-- results:ladders.inversions_net_total --> inversions survive the fee,
@@ -181,7 +181,7 @@ refused.
 
 At mids rather than at the touch, the same ladders imply negative
 probability mass between adjacent strikes
-16,340 <!-- results:ladders.negative_mass_gross_total --> times. That is a
+17,367 <!-- results:ladders.negative_mass_gross_total --> times. That is a
 statement about where quotes are marked, not a trade, and the two numbers
 are kept apart on purpose.
 
@@ -189,23 +189,23 @@ are kept apart on purpose.
 
 Kalshi is not screened, because the screen cannot fire there:
 `no_ask == 1 - yes_bid` held on
-1,663,501 <!-- results:kalshi_identity.books_checked_total --> of
-1,663,501 <!-- results:kalshi_identity.books_checked_total --> two-sided
+1,708,477 <!-- results:kalshi_identity.books_checked_total --> of
+1,708,477 <!-- results:kalshi_identity.books_checked_total --> two-sided
 books, 0 <!-- results:kalshi_identity.deviations_total --> deviations, so
 YES ask + NO ask is 1 + spread by construction. The replay asserts the
 identity and fails the build if it ever breaks — a venue changing its data
 model is a thing to look at, not a result to publish.
 
 Where the screen can fire:
-59,194 <!-- results:predictit_complement.pairs_total --> PredictIt YES/NO
+59,695 <!-- results:predictit_complement.pairs_total --> PredictIt YES/NO
 ask pairs give 0 <!-- results:predictit_complement.gross_total -->
-violations gross. 113,146 <!-- results:polymarket_complement.pairs_total -->
+violations gross. 114,024 <!-- results:polymarket_complement.pairs_total -->
 Polymarket quoted outcome pairs give
 43 <!-- results:polymarket_complement.gross_total -->, and all
 43 <!-- results:polymarket_complement.gross_string_sorted_era --> of them
 are inside the string-sorted era, against
 0 <!-- results:polymarket_complement.gross_numeric_era --> in the
-53 <!-- results:polymarket_complement.snapshots_numeric_era --> clean
+54 <!-- results:polymarket_complement.snapshots_numeric_era --> clean
 snapshots. The incoherent quotes are in the thin, often already-expired
 rows the recorder's broken sort surfaced, which makes that a finding about
 this repo rather than about Polymarket.
@@ -223,18 +223,18 @@ else" bucket is the missing mass.
 
 ### The one-line answer, dated 2026-09-11
 
-Over 19.7 <!-- results:archive.days_spanned --> days and
-121 <!-- results:archive.snapshots --> snapshots —
-903,775 <!-- results:ladders.adjacent_pairs_total --> adjacent strike
-pairs, 59,194 <!-- results:predictit_complement.pairs_total --> PredictIt
-pairs, 113,146 <!-- results:polymarket_complement.pairs_total -->
-Polymarket pairs, 29,936 <!-- results:buckets.screened_total --> screened
+Over 19.8 <!-- results:archive.days_spanned --> days and
+122 <!-- results:archive.snapshots --> snapshots —
+928,215 <!-- results:ladders.adjacent_pairs_total --> adjacent strike
+pairs, 59,695 <!-- results:predictit_complement.pairs_total --> PredictIt
+pairs, 114,024 <!-- results:polymarket_complement.pairs_total -->
+Polymarket pairs, 30,897 <!-- results:buckets.screened_total --> screened
 bucket-sum events — honest fee accounting erases every coherence violation
 the screens can find, with one exception, and the exception appeared the
 moment the recorder stopped truncating the catalog:
 `KXINXMINY-01JAN2027`, the S&P-500-minimum ladder, inverted by up to
 1.0 <!-- results:ladders.worst_net_inversion.net_edge_cents --> cent net
-of fee in all 4 <!-- results:ladders.by_recorder.schema2.snapshots -->
+of fee in all 5 <!-- results:ladders.by_recorder.schema2.snapshots -->
 recorder-v2 snapshots recorded so far. Both halves of that sentence get
 published at the same size.
 
@@ -319,13 +319,13 @@ headline number: the public feed carries open markets only, so its
 outcomes are *inferred* from the last trade of a contract that vanished,
 and scoring a forecast against a guess is not a measurement.
 
-**Coverage today.** 28,269 <!-- results:calibration.settlements_read -->
+**Coverage today.** 33,380 <!-- results:calibration.settlements_read -->
 settled markets have been captured, and
-4,587 <!-- results:calibration.observations_headline --> market/horizon
+4,754 <!-- results:calibration.observations_headline --> market/horizon
 cells have both an outcome and a usable pre-settlement quote; another
-15,595 <!-- results:calibration.observations_rejected_stale --> were
+16,031 <!-- results:calibration.observations_rejected_stale --> were
 refused for a stale quote and
-967 <!-- results:calibration.observations_rejected_one_sided --> for a
+980 <!-- results:calibration.observations_rejected_one_sided --> for a
 one-sided book. The scores themselves live in
 [`results/README.md`](results/README.md) with their composition table
 attached, and they should be read with it: this is not a random sample of
