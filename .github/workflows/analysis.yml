@@ -53,6 +53,20 @@ jobs:
             echo "::notice::the data branch does not exist yet; replaying data/ only"
           fi
 
+      # Unlike the recorder and the settle job, the replay needs every blob,
+      # so this is a full tip checkout with no sparse cone.
+      #
+      # KNOWN LIMIT, and it is a real one: this job re-reads the whole archive
+      # every run. On a hosted runner a recorder-v1 snapshot costs about half a
+      # second and a v2 snapshot (about 56,000 markets) a few seconds, so at
+      # roughly twelve snapshots a day the replay outgrows the timeout below in
+      # a couple of months, and the checkout outgrows the runner's disk in
+      # about a year (the data branch grows 2-8 MB a day). The fix is an
+      # incremental replay keyed on the per-blob sha256 already in
+      # manifest.json, reusing the row in results/timeseries.csv for any blob
+      # whose hash has not changed. That is not written yet; when this job
+      # starts taking more than ten minutes, write it rather than raising the
+      # timeout.
       - name: checkout data branch into ./archive
         if: steps.probe.outputs.exists == 'true'
         uses: actions/checkout@v4
