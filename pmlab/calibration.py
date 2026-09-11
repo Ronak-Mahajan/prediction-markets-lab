@@ -113,10 +113,12 @@ BOOTSTRAP_ALPHA = 0.05
 
 #: Resampling two blocks with replacement draws the same two blocks a
 #: quarter of the time, and the "interval" that comes out is an artefact of
-#: the block count rather than a statement about the data -- a Kalshi slice
-#: whose settlements all landed on one day produced [1.000, 1.000]. Below
-#: this many blocks no bootstrap interval is reported and the block count
-#: is reported instead.
+#: the block count rather than a statement about the data. This threshold
+#: exists because of a measured case: on the 2026-09-11 archive, before the
+#: settle job had caught up, every scored Kalshi market had settled on one
+#: day, and the reliability bins duly reported a 95% interval of
+#: [1.000, 1.000]. Below this many blocks no bootstrap interval is reported
+#: and the block count is reported in its place.
 MIN_BOOTSTRAP_BLOCKS = 3
 
 #: Venue-native liquidity bands. Units differ by venue (contracts of open
@@ -613,20 +615,22 @@ def _quote_from_row(venue: str, r: dict) -> tuple[float, float, float | None,
     Two-sidedness is a hard requirement on every venue that runs a book: a
     market with only one side quoted has not made a forecast this module
     can score, and its "mid" is not a price anyone offered. On the archive
-    as it stands this rejects 233 market/horizon cells, all of them
-    Polymarket rows with a missing ``bestBid`` or ``bestAsk`` (checked
-    2026-09-11: no Polymarket row in the first 30 snapshots quotes a bid or
-    ask of exactly zero -- the venue omits the field instead) plus Kalshi
-    rows the loader already marks one-sided.
+    of 2026-09-11 (identity ``94708f0191ab79ed``, 121 snapshots) this
+    rejects 967 market/horizon cells, almost all of them Polymarket rows
+    with a missing ``bestBid`` or ``bestAsk``: checked the same day, no
+    Polymarket row in the first 30 snapshots quotes a bid or ask of exactly
+    zero, because the venue omits the field rather than sending a zero.
 
     Two-sidedness is **not** sufficient, and the tables say so rather than
-    filtering further. In the 1 d sample the 189 forecasts whose ask is at
-    or above 0.90 have a *median spread of 85 cents*: split them, and the
-    79 with a spread of 10 cents or less settled YES 97.5% of the time
-    against a mean ask of 0.985, while the 110 wider ones settled YES 44.5%
-    of the time. The favourite-longshot table reports a median spread per
-    bin for exactly this reason; a nominal ask on an empty book is a
-    two-sided quote and still not a price.
+    filtering further. In that archive's 1 d sample the 679 forecasts whose
+    ask is at or above 0.90 have a *median spread of 86 cents*, and the
+    table reads -30.9 cents of favourite-longshot bias. Split them on the
+    spread and the effect is almost entirely width: the 286 with a spread
+    of 10 cents or less settled YES 98.6% of the time against a mean ask of
+    0.992 (a bias of -0.6 cents), while the 393 wider ones settled YES
+    42.7% of the time. Every favourite-longshot bin therefore reports a
+    median spread; a nominal ask resting on an empty book is a two-sided
+    quote and still not a price.
 
     Manifold is the exception and is flagged as one: it publishes a single
     probability rather than a book, so its bid and ask are that number.

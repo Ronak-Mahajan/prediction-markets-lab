@@ -238,21 +238,125 @@ of fee in all 4 <!-- results:ladders.by_recorder.schema2.snapshots -->
 recorder-v2 snapshots recorded so far. Both halves of that sentence get
 published at the same size.
 
-### Still to come in Phase 2
+### Cross-venue basis
 
-The same event priced on two venues, matched conservatively (a
-hand-curated event map; exact title matching yields zero pairs), with the
-basis measured net of each side's fees and spread. The deliverable is a
-distribution of persistent basis and its decay time, not a screenshot of
-one gap.
+`pmlab/basis.py` prices the same event on two venues and reports the
+fee-adjusted basis distribution and its half-life. The pairs come from
+[`events.yaml`](events.yaml), which is written by hand under one rule:
 
-## Phase 3 (planned): does sentiment lead repricing?
+> **Identical entity and identical deadline on both venues**, read off
+> both venues' rules pages by a person. No fuzzy matching.
+
+That rule is not fastidiousness, it is what the data forces. On the
+archive's first snapshot, exact title matching across every venue pair
+yields zero pairs; token-Jaccard at 0.75 yields one, and it is wrong
+(Polymarket's "next cabinet member to leave" against Kalshi's "first
+cabinet member to leave"); a PredictIt/Kalshi keyword overlap yields 28
+of 187 and matches party-wins markets against margin-of-victory ladders.
+A wrong pair does not produce a small error, it produces a basis that is
+entirely an artefact.
+
+So every pair carries `verified: true|false`, **unverified pairs are
+counted and never priced**, and a pair claiming verification without a
+`checked_on` date is rejected by the loader. The file ships as a skeleton
+of 5 <!-- results:basis.pairs_total --> example pairs, of which
+0 <!-- results:basis.pairs_verified --> are verified today; each one
+names the specific thing a person has to go and check, and three of them
+are there precisely because they look like pairs and are not ("shutdown
+**on** Oct 1" against "shutdown **by** Oct 1"; a threshold on the fed
+funds level against a statement about the change). Manifold legs are
+rejected outright: it is play money, so a dollar basis against it is not
+a dollar.
+
+Until a pair is verified, [`results/README.md`](results/README.md) prints
+an empty basis table with that reason attached. That is the honest output,
+and it is the current one.
+
+## Phase 3 (live): calibration
+
+Every screen above asks whether a set of prices is *coherent*. Calibration
+asks whether it was *right*, which needs outcomes, which is why it could
+not exist until `settle.py` started following recorded markets to their
+settlement. `pmlab/calibration.py` runs inside the same replay pass and
+writes its tables into [`results/README.md`](results/README.md) and its
+per-forecast rows into `results/calibration.csv`.
+
+**The join.** For each settled market and each horizon H - 1 day, 1 week,
+1 month, 2 months - the scored quote is the last one recorded at or
+before `settled_at - H`, and it is used only if it is no more than 24 h
+older than that cut-off. The age cap is the part that makes the rest
+trustworthy: without it a market that settled on 2026-09-10 and was last
+quoted on 2026-08-23 would be scored as a one-day-ahead forecast when it
+is an eighteen-day-ahead one, and the 1 d column would quietly fill with
+stale prices. 24 h is just under twice the worst gap the recorder has
+actually produced against its 3.3 h median, so a normally-quoted market
+always has a usable quote and a market the recorder missed is reported
+missing rather than invented. A horizon longer than the archive is
+therefore empty *by construction*, and the table says which date would
+fill it.
+
+**What is scored.** Brier score and log score on the mid against a 50/50
+baseline (Brier 0.25, log -0.6931), with the skill score beside them;
+reliability curves in ten bins, each carrying both a Wilson interval and
+a block-bootstrap interval over (venue, settlement day) blocks; and
+favourite-longshot bias measured **separately on the bid and on the ask**,
+never on the mid, because a longshot buyer pays the ask and a favourite
+seller receives the bid while nobody trades the mid. Sliced by venue,
+category, horizon, liquidity band and Polymarket recorder era.
+
+**What it refuses to do.** A stale quote is reported unscored, not
+scored. A one-sided book is reported unscored, because its mid is not a
+price. Below three settlement-day blocks no bootstrap interval is
+reported at all, because resampling two blocks describes the block count
+rather than the data. Every refusal is counted in the output rather than
+quietly dropped, and each table carries a `blocks` column next to its `n`
+- a thousand forecasts spread over four settlement days is four
+observations of the world wearing a large `n`. A wide two-sided book is
+*not* refused, but every favourite-longshot bin reports its median spread,
+because a nominal ask sitting on an empty book is a two-sided quote and
+still not a price. PredictIt is joined and reported but never enters a
+headline number: the public feed carries open markets only, so its
+outcomes are *inferred* from the last trade of a contract that vanished,
+and scoring a forecast against a guess is not a measurement.
+
+**Coverage today.** 28,269 <!-- results:calibration.settlements_read -->
+settled markets have been captured, and
+4,587 <!-- results:calibration.observations_headline --> market/horizon
+cells have both an outcome and a usable pre-settlement quote; another
+15,595 <!-- results:calibration.observations_rejected_stale --> were
+refused for a stale quote and
+967 <!-- results:calibration.observations_rejected_one_sided --> for a
+one-sided book. The scores themselves live in
+[`results/README.md`](results/README.md) with their composition table
+attached, and they should be read with it: this is not a random sample of
+any venue's catalog, it is the set of markets that happened to resolve
+inside a three-week recording window, which skews hard towards short-dated
+sports and towards whatever the recorder's Polymarket slice held at the
+time. The sample gets less strange every week the cron runs.
+
+**The schedule.** Polymarket settles first and in volume: 479 of its
+recorded markets end before 2026-11-04, 315 of them in September, so the
+first table with a large `n` spread across many settlement days is an
+autumn 2026 table. Kalshi arrives later than the midterms suggest. The
+recorded Kalshi election markets are the `KXMIDTERMMOV` margin-of-victory
+and `KXMIDTERMVOTETURN` turnout ladders, and they settle on **certified**
+results, so their outcomes land in December 2026 and January 2027 rather
+than on election night; the per-race winner markets that do settle on
+media calls were absent from recorder v1 entirely because of its
+2,000-event cap, and enter the archive only from recorder v2 onward.
+Manifold resolves continuously but is play money. So the table is rebuilt
+on every run and gets its first serious Kalshi block over the winter.
+
+## Later (undecided): does sentiment lead repricing?
 
 Score public news flow (headline feeds, statement diffs for scheduled
 events like FOMC) and test, walk-forward and out of sample, whether
 sentiment shifts lead prediction-market price moves or lag them. The
 recorder's timestamps make the lead-lag question answerable; nothing
-gets reported in-sample.
+gets reported in-sample. This one is deliberately unnumbered: it is the
+weakest idea in this README, and the honest options are to do it properly
+or to strike it - a decision to make once the winter calibration tables
+are in, not before.
 
 ## Phase 4 (planned): model vs market on financial events
 
@@ -298,6 +402,16 @@ frictions, not free money; the study is its structure and stability.
   `no_ask == 1 - yes_bid` there would import exactly the tautology that
   disqualifies the Kalshi screen, so the number is reported as quote
   coherence, never as a demonstrated trade.
+- The calibration sample is not a sample of any venue's catalog. It is
+  the set of recorded markets that resolved inside the recording window,
+  so it over-represents short-dated sports and, on Polymarket, the
+  string-sorted era described above. `results/README.md` prints the
+  venue, era and settlement-day composition directly above the scores,
+  and the scores should not be quoted without it.
+- PredictIt calibration numbers are computed from *inferred* outcomes
+  (the contract left the public feed and its last trade is read as the
+  answer) and are excluded from every headline table. They are published
+  so the inference can be judged, not so it can be cited.
 - Every number in this README is dated. Numbers a script produces are
   tagged `<!-- results:key -->` and checked against `results/summary.json`
   by `scripts/check_readme.py` in CI; a tagged number is never edited by
@@ -312,13 +426,16 @@ python settle.py --archive archive --snapshots data
 python screen.py                      # coherence report on the newest snapshot
 python -m pmlab.replay                # every screen over every snapshot -> results/
 python -m pmlab.replay --roots data --no-plots    # no matplotlib needed
+python -m pmlab.replay --settlements archive/settlements --events events.yaml
 python scripts/check_readme.py        # do this file's numbers still match results/?
 python -m pytest -q tests             # schema, settlement, fee and screen tests
 ```
 
 Python 3.10+. `record.py`, `settle.py`, `screen.py` and everything under
 `pmlab/` except the plotting step are standard library only; the replay's
-SVGs need matplotlib (`--no-plots` skips them) and the tests need pytest.
+SVGs need matplotlib (`--no-plots` skips them), `pmlab.basis` needs PyYAML
+to read `events.yaml` (and says so in the output rather than silently
+reporting an empty map when it is missing), and the tests need pytest.
 
 ## License
 

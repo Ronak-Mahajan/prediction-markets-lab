@@ -12,10 +12,11 @@ than scored on a stale price, and a cell whose only book is one-sided is
 reported unscored rather than scored on a mid that is not a price.
 
 The third case is a refusal *not* made, and it is pinned here on purpose:
-a wide two-sided book is still reported. On the real archive the top ask
-bin carries a -29.8 cent favourite-longshot bias with a median spread of
-85 cents, and splitting it on the spread moves the realised frequency from
-44.5% (spread above 10c) to 97.5% (spread at or below 10c). The tables
+a wide two-sided book is still reported. On the 2026-09-11 archive the top
+ask bin carries a -30.9 cent favourite-longshot bias over 679 forecasts
+with a median spread of 86 cents, and splitting it on the spread moves the
+realised frequency from 42.7% (spread above 10c, 393 forecasts) to 98.6%
+(spread at or below 10c, 286 forecasts, mean ask 0.992). The tables
 therefore carry a median spread per bin instead of a spread filter, and
 ``test_flb_bins_report_the_spread_that_explains_them`` is what keeps that
 column honest.
@@ -515,6 +516,26 @@ def test_calibration_output_is_byte_stable_across_runs(tmp_path):
                      (out / "calibration.csv").read_bytes()))
     assert outs[0][0] == outs[1][0]
     assert outs[0][1] == outs[1][1]
+
+
+def test_the_reliability_figures_render_both_full_and_empty(tmp_path):
+    """The figure set must be the same shape before and after the first
+    settlement, or results/README.md links a file that is not there."""
+    pytest.importorskip("matplotlib")
+    from pmlab import replay as R
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    written = R.write_calibration_plots(calibration.empty_report(), empty)
+    assert {p.name for p in written} == {"reliability.svg",
+                                         "favourite_longshot.svg"}
+    assert all(p.stat().st_size > 0 for p in written)
+
+    full = tmp_path / "full"
+    full.mkdir()
+    written = R.write_calibration_plots(run_join(tmp_path), full)
+    assert all(p.stat().st_size > 0 for p in written)
+    for p in written:
+        assert "nan" not in p.read_text(encoding="utf-8").lower()
 
 
 # --------------------------------------------------------------------------
