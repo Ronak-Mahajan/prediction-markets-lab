@@ -48,14 +48,17 @@ jobs:
           filter: blob:none
           sparse-checkout: settlements
 
+      # Nothing to settle before the first recorder run has created the data
+      # branch. That is the ordinary state of a fresh branch, not a failure,
+      # so the job reports it and stops green.
       - name: data branch missing
         if: steps.probe.outputs.exists == 'false'
         run: |
-          echo "the data branch does not exist yet; run the record workflow first" | tee -a ci.log
-          exit 1
+          echo "::notice::the data branch does not exist yet; the record workflow creates it"
 
       # Fetch only the snapshot days settle.py has not indexed yet.
       - name: materialise unindexed snapshots
+        if: steps.probe.outputs.exists == 'true'
         run: |
           set -o pipefail
           DAYS=$(python -m pmlab.sparse archive)
@@ -65,6 +68,7 @@ jobs:
           fi
 
       - name: settle
+        if: steps.probe.outputs.exists == 'true'
         run: |
           set -o pipefail
           FLAGS=""
@@ -72,6 +76,7 @@ jobs:
           python settle.py --archive archive --snapshots data $FLAGS 2>&1 | tee -a ci.log
 
       - name: commit and push to data
+        if: steps.probe.outputs.exists == 'true'
         run: |
           set -e
           cd archive

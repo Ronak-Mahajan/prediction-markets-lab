@@ -62,6 +62,15 @@ def to_float(x) -> float | None:
         return None
 
 
+# A deadline outside this window is not one: the archive starts in 2026 and
+# no listed market resolves in the fourth millennium. Bounding the epoch here
+# keeps parse_time's answer the same on every platform.
+_MAX_PLAUSIBLE_YEAR = 2200
+_EPOCH_MIN = 0.0                                   # 1970-01-01T00:00:00Z
+_EPOCH_MAX = float(datetime(_MAX_PLAUSIBLE_YEAR, 1, 1,
+                            tzinfo=timezone.utc).timestamp())
+
+
 def parse_time(s) -> datetime | None:
     """ISO-8601 (with Z or offset) or epoch seconds/milliseconds to aware UTC.
 
@@ -71,6 +80,13 @@ def parse_time(s) -> datetime | None:
     to 9999 (max 253402329540000 ms); ``datetime.fromtimestamp`` raises
     OSError on those on Windows and OverflowError elsewhere, which used to
     take the whole loader down on one joke market.
+
+    The out-of-range test is an explicit bound, not the platform's. Python
+    can represent year 3022 on Linux and cannot on Windows, so catching the
+    exception alone made the same joke market parse differently on the two
+    operating systems and the archive's meaning depend on the runner. No
+    prediction market resolves after ``_MAX_PLAUSIBLE_YEAR``; a stamp beyond
+    it is a typo or a joke, and either way it is not a deadline.
     """
     if s is None or s == "":
         return None
@@ -80,6 +96,8 @@ def parse_time(s) -> datetime | None:
         v = float(s)
         if abs(v) > 1e11:                    # milliseconds (Manifold)
             v /= 1000.0
+        if not _EPOCH_MIN <= v <= _EPOCH_MAX:
+            return None                      # not a deadline anyone will meet
         try:
             return datetime.fromtimestamp(v, tz=timezone.utc)
         except (OSError, OverflowError, ValueError):
@@ -97,7 +115,10 @@ def parse_time(s) -> datetime | None:
         return None
     if d.tzinfo is None:
         d = d.replace(tzinfo=timezone.utc)
-    return d.astimezone(timezone.utc)
+    d = d.astimezone(timezone.utc)
+    if d.year > _MAX_PLAUSIBLE_YEAR:        # same bound as the epoch branch
+        return None
+    return d
 
 
 def parse_json_list(x) -> list | None:
