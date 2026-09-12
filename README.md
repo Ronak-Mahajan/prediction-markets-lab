@@ -7,7 +7,7 @@ and let weeks of data draw the conclusions.
 
 The repo records its own data with no server anywhere: a GitHub Actions
 cron snapshots four venues' public APIs and commits the result. The cron
-is scheduled every two hours; across the first 116 snapshot intervals
+is scheduled every two hours; across every interval in the archive
 the realised cadence is a median 3.3 h with a maximum gap of 12.6 h
 (2026-08-27 and 08-28 have two snapshots each), because hosted schedulers
 delay runs under load. Every run succeeded, so the gaps are scheduler
@@ -18,17 +18,24 @@ live, so every later study has an archive it can replay.
 
 | venue | recorded per snapshot (recorder v2) | source |
 |---|---|---|
-| Kalshi | every open non-Sports market plus the 3,000 highest-open-interest Sports markets (about 48,000 markets across about 6,000 events; 123,155 open markets swept on 2026-09-11, 77,996 of them Sports), with event metadata | official public API v2 |
+| Kalshi | every open non-Sports market plus the 3,000 highest-open-interest Sports markets, with event metadata. On the newest recorded snapshot (2026-09-11T20:03Z) that swept 135,289 open markets, 81,664 of them Sports, and kept 56,625 across 7,266 events | official public API v2 |
 | Polymarket | top 1,000 by `liquidityNum`, sorted client-side, rows already past their `endDate` dropped | gamma API |
 | PredictIt | full catalog (about 190 markets, about 590 contracts) | official API |
 | Manifold | 1,000 most liquid open binaries (`search-markets?sort=liquidity`) | official API |
 
 No keys, no scraping; snapshots are trimmed to the fields the studies
-need. Recorder v1 (2026-08-23 to the merge of this branch) recorded the
-first 2,000 Kalshi events (about 14,000 markets, dominated by the two
-midterm ladder families), Polymarket as served, and Manifold's 1,000
-newest markets; those blobs are kept unchanged and load through the same
-loader (see "Provenance and corrections").
+need. Every Kalshi figure in that row is the recorder's own tally, stored
+in the snapshot it describes under `meta.kalshi` (`swept`, `kept`,
+`events`, `by_category`), so it can be read back out of the archive
+rather than taken on trust — and it moves as the venue's catalog moves,
+which is why it is quoted against a named snapshot instead of as a
+standing fact.
+
+Recorder v1 (2026-08-23 to the merge of this branch) recorded the first
+2,000 Kalshi events (about 14,000 markets, dominated by the two midterm
+ladder families), Polymarket as served, and Manifold's 1,000 newest
+markets; those blobs are kept unchanged and load through the same loader
+(see "Provenance and corrections").
 
 ## Storage
 
@@ -118,22 +125,35 @@ went stale unnoticed. Every figure below is regenerated, not typed.
 The replay re-reads the whole archive every run, and the archive only
 grows, so `--cache` makes it incremental: a snapshot's coherence counts
 are a function of that snapshot's bytes alone, and a blob whose sha256
-has not moved is not screened again. On the 123-snapshot archive that is
-111 s down to 36 s, with `timeseries.csv`, `summary.json` and
-`calibration.csv` byte-identical to a cold run — which is the only claim
-worth making about a cache, and `tests/test_incremental.py` pins it in
-both directions. The cache discards itself whenever any module in
-`pmlab/` changes, so it can never serve a number produced by code that no
-longer exists.
+has not moved is not screened again. On a 123-snapshot archive that is a
+median 40 s down to 12 s (`scripts/bench_replay.py --end-to-end`, five
+interleaved runs each, page cache warmed first; the no-cache runs spread
+34-41 s and the cached ones 11-14 s on this machine), with
+`timeseries.csv`, `summary.json` and `calibration.csv` byte-identical to a
+cold run — which is the only claim worth making about a cache, and
+`tests/test_incremental.py` pins it in both directions. The cache discards
+itself whenever any module in `pmlab/` changes, so it can never serve a
+number produced by code that no longer exists.
+
+The benchmark interleaves the two configurations and reads all 88 MB once
+before timing starts, because the obvious way to measure a cache flatters
+it twice over: the first run of a pair pays for a cold page cache that the
+second does not, and the first `--cache` run is the one that *populates*
+the cache and has no hits to serve. Timed that way the same code looks
+about 9x faster. It is 3x. An identical no-cache replay varies by about a
+fifth run to run here, so what is quoted is a median with its spread.
 
 What it deliberately does **not** skip is reading the blob. The
 settlement join is not a function of one snapshot — a market settling
 tomorrow is scored against a quote recorded weeks ago — so every blob is
-still decoded and only the rows the join can use are coerced. That leaves
-the gzip and JSON decode, about 0.8 s per recorder-v2 snapshot, as the
-part that still grows with the archive; the next step, when the job
-approaches its ten-minute budget again, is a per-blob quote index written
-once and read instead of the blob.
+still decoded and only the rows the join can use are coerced. On the
+newest recorder-v2 snapshot (56,625 markets, 2.86 MB gzipped) the same
+benchmark splits that into 0.74 s to load, 0.43 s to screen and 0.34 s to
+decode alone; the cache removes the screen column and the decode is the
+floor, because a blob's identity is its bytes. That floor is the part
+that still grows with the archive; the next step, when the job approaches
+its ten-minute budget again, is a per-blob quote index written once and
+read instead of the blob.
 
 **Archive replayed:** 124 <!-- results:archive.snapshots --> snapshots
 from 2026-08-23 to 2026-09-11 — 19.8 <!-- results:archive.days_spanned -->
@@ -372,10 +392,15 @@ inside a three-week recording window, which skews hard towards short-dated
 sports and towards whatever the recorder's Polymarket slice held at the
 time. The sample gets less strange every week the cron runs.
 
-**The schedule.** Polymarket settles first and in volume: 479 of its
-recorded markets end before 2026-11-04, 315 of them in September, so the
-first table with a large `n` spread across many settlement days is an
-autumn 2026 table. Kalshi arrives later than the midterms suggest. The
+**The schedule.** Polymarket settles first and in volume: of the 1,000
+rows in the newest recorded snapshot (2026-09-11T20:03Z), 471 end before
+2026-11-04 and 300 end in September, so the first table with a large `n`
+spread across many settlement days is an autumn 2026 table. That count is
+of one snapshot's slice, not of the archive: the recorder keeps the top
+1,000 by liquidity and the slice turns over, so across all 123 snapshots
+35,996 distinct Polymarket ids have been seen.
+
+Kalshi arrives later than the midterms suggest. The
 recorded Kalshi election markets are the `KXMIDTERMMOV` margin-of-victory
 and `KXMIDTERMVOTETURN` turnout ladders, and they settle on **certified**
 results, so their outcomes land in December 2026 and January 2027 rather
@@ -399,8 +424,16 @@ are in, not before.
 ## Phase 4 (planned): model vs market on financial events
 
 Kalshi lists range markets on equity indexes (KXINXY, KXINXDIRY and the
-daily KXNASDAQ100U family are in the archive; no KXBTC range series was
-captured by recorder v1). A calibrated options surface implies
+daily KXNASDAQ100U family are in the archive). Recorder v1 captured no BTC
+range series at all — across all 117 v1 snapshots the only BTC ticker is
+`KXTREASBUYBTC`, a custom-strike market, because the range series sat
+beyond its 2,000-event cap. Lifting the cap fixed that: the newest v2
+snapshot carries 21 series with BTC in the ticker, 13 of them with a
+numeric strike type, including `KXBTC` (180 markets, mostly `between`
+ranges) and `KXBTCD` (180 threshold markets). This phase now has both
+legs of its comparison in the archive.
+
+A calibrated options surface implies
 risk-neutral probabilities for those exact events
 ([neural-options-lab](https://github.com/Ronak-Mahajan/neural-options-lab)
 calibrates rough Bergomi with jumps to Deribit's BTC surface). The gap

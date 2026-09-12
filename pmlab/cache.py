@@ -1,12 +1,19 @@
 """Per-blob cache of the coherence screens, for the incremental replay.
 
 The replay re-reads the whole archive on every run, and the archive only
-grows. Measured on 2026-09-11 on the recording machine: a recorder-v1
-snapshot (14,549 Kalshi markets) costs about 0.25 s to load and 0.17 s to
-screen; a recorder-v2 snapshot (56,625 markets) costs 1.85 s to load and
-0.98 s to screen. At the cron's realised cadence that is a job whose
-runtime grows by about twenty seconds a day, and the analysis workflow has
-a ten-minute budget.
+grows. Measured by ``scripts/bench_replay.py`` on 2026-09-11 on the
+recording machine (median of five, page cache warmed first): a
+recorder-v1 snapshot (14,145 Kalshi markets, 0.60 MB gzipped) costs about
+0.12 s to load and 0.09 s to screen; a recorder-v2 snapshot (56,625
+markets, 2.86 MB) costs 0.74 s to load and 0.43 s to screen. At the
+cron's realised cadence that is a job whose runtime grows by several
+seconds a day, and the analysis workflow has a ten-minute budget.
+
+Treat those as the machine's numbers on the day, not constants: an
+identical no-cache replay of the whole archive varied 34-41 s across five
+runs here, so anything quoted to two decimals is a median with real
+spread behind it. Re-run the benchmark rather than trusting the figures
+above once the archive has grown.
 
 What this cache removes, and what it cannot
 -------------------------------------------
@@ -15,7 +22,7 @@ A snapshot's *screens* depend on nothing but that snapshot's bytes. Ladder
 inversions, complement violations and bucket sums are a pure function of
 one blob, so once a blob's sha256 has been seen, its row in
 ``results/timeseries.csv`` and the worst cases behind it can be replayed
-from here instead of recomputed. That is the 0.98 s.
+from here instead of recomputed. That is the 0.43 s.
 
 The *settlement join* is not a pure function of one blob: a market that
 settles tomorrow is scored against a quote recorded weeks ago, so a
@@ -24,15 +31,16 @@ because its screens are cached would silently drop quotes from the
 calibration tables. So every blob is still read and decoded, and
 :func:`pmlab.archive.snapshot_from_raw` is handed the join's key set so
 that only the rows the join can use are coerced -- a few hundred of the
-56,000 markets in a v2 blob. That is most of the 1.85 s.
+56,000 markets in a v2 blob. That is most of the 0.74 s.
 
-What is left is the gzip and JSON decode of every blob, about 0.8 s for a
+What is left is the gzip and JSON decode of every blob, about 0.34 s for a
 v2 snapshot, which no cache keyed on blob identity can avoid: the identity
 *is* the bytes. Removing that needs a per-blob quote index written once
 and read instead of the blob, which is the next thing to build when this
-job approaches its budget again. The saving here is roughly a third of the
-run and, more to the point, it makes the growth rate the decode cost
-rather than the decode-plus-screen cost.
+job approaches its budget again. End to end on the 123-snapshot archive
+the saving measured a median 40 s -> 12 s, about 3x, and -- more to the
+point -- it makes the growth rate the decode cost rather than the
+decode-plus-screen cost.
 
 Correctness
 -----------
