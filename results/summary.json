@@ -1,41 +1,41 @@
 {
- "generated": "2026-09-11T21:55:21Z",
- "code_commit": "b3fcbf67280f7400ee85bb2a1a0a4711567dbffa",
+ "generated": "2026-09-12T01:12:13Z",
+ "code_commit": "e11fc7d791b99c311e2b467a0c1c1ea2e1afca4c",
  "archive": {
   "roots": [
    "data",
    "archive/data"
   ],
-  "snapshots": 124,
+  "snapshots": 125,
   "first_snapshot": "2026-08-23T01:18:06Z",
-  "last_snapshot": "2026-09-11T21:47:34Z",
-  "days_spanned": 19.85,
+  "last_snapshot": "2026-09-11T21:54:18Z",
+  "days_spanned": 19.86,
   "schema1_snapshots": 117,
-  "schema2_snapshots": 7,
-  "identity_sha256": "f484c27d85897b90e2cfa2b385ee904b7351363af1a47d24875f1272d5219618",
+  "schema2_snapshots": 8,
+  "identity_sha256": "82654f65bdb3391d131cd82aec48f5846b0b38a0ba95ad95f813a126a3b035ee",
   "median_gap_hours": 3.3,
   "max_gap_hours": 12.64
  },
  "kalshi_identity": {
-  "books_checked_total": 1802195,
+  "books_checked_total": 1849537,
   "deviations_total": 0,
-  "books_median": 12745.0,
+  "books_median": 12746,
   "note": "no_ask == 1 - yes_bid is asserted as a data-quality invariant, not reported as a complement result; a single deviation fails the replay."
  },
  "ladders": {
-  "median_per_snapshot": 1121.0,
+  "median_per_snapshot": 1121,
   "min_per_snapshot": 848,
   "max_per_snapshot": 3488,
-  "rungs_median_per_snapshot": 7976.0,
-  "rungs_total": 1134980,
-  "adjacent_pairs_total": 979752,
-  "inversions_gross_total": 315,
+  "rungs_median_per_snapshot": 7976,
+  "rungs_total": 1164612,
+  "adjacent_pairs_total": 1005901,
+  "inversions_gross_total": 320,
   "inversions_net_total": 3,
-  "snapshots_with_gross_inversion": 69,
+  "snapshots_with_gross_inversion": 70,
   "snapshots_with_net_inversion": 3,
-  "negative_mass_gross_total": 20753,
-  "negative_mass_beyond_fee_total": 8876,
-  "negative_mass_gross_median": 117.0,
+  "negative_mass_gross_total": 22654,
+  "negative_mass_beyond_fee_total": 9498,
+  "negative_mass_gross_median": 117,
   "worst_gross_inversion": {
    "snapshot": "2026-08-26T09:05:55Z",
    "event_ticker": "KXFEDFUNDSYEAR-32JAN01",
@@ -63,9 +63,9 @@
     "inversions_net": 0
    },
    "schema2": {
-    "snapshots": 7,
-    "adjacent_pairs": 175044,
-    "inversions_gross": 24,
+    "snapshots": 8,
+    "adjacent_pairs": 201193,
+    "inversions_gross": 29,
     "inversions_net": 3
    }
   },
@@ -109,15 +109,15 @@
    },
    {
     "event_ticker": "KXMDT-26DECCARDGROW",
-    "inversions": 7
+    "inversions": 8
    },
    {
     "event_ticker": "KXB200MAX-26DEC31",
-    "inversions": 6
+    "inversions": 7
    },
    {
     "event_ticker": "KXFEDFUNDSYEAR-28JAN01",
-    "inversions": 5
+    "inversions": 6
    },
    {
     "event_ticker": "KXLFPRATEEOY-33JAN07",
@@ -126,8 +126,8 @@
   ]
  },
  "polymarket_complement": {
-  "pairs_median_per_snapshot": 941.5,
-  "two_sided_median_per_snapshot": 884.5,
+  "pairs_median_per_snapshot": 941,
+  "two_sided_median_per_snapshot": 882,
   "crossed_books_total": 0,
   "gross_total": 43,
   "net_total": 43,
@@ -135,8 +135,8 @@
   "gross_string_sorted_era": 43,
   "gross_numeric_era": 0,
   "snapshots_string_sorted_era": 68,
-  "snapshots_numeric_era": 56,
-  "pairs_total": 115789,
+  "snapshots_numeric_era": 57,
+  "pairs_total": 116674,
   "worst": {
    "snapshot": "2026-08-27T09:57:38Z",
    "market_id": "3597573",
@@ -153,20 +153,20 @@
   "note": "Screened on the venue's quoted outcome-price pair, not on two asks: the complementary token's book is not in this archive (a recorder gap). A violation is an incoherent quote, not a demonstrated trade."
  },
  "predictit_complement": {
-  "pairs_median_per_snapshot": 495.5,
-  "pairs_total": 60702,
+  "pairs_median_per_snapshot": 496,
+  "pairs_total": 61208,
   "gross_total": 0,
   "net_total": 0,
   "snapshots_with_violation": 0,
   "worst": null
  },
  "buckets": {
-  "screened_median_per_snapshot": 228.0,
-  "screened_total": 32817,
-  "candidates_gross_median": 20.0,
-  "candidates_net_median": 8.0,
-  "candidates_gross_total": 2961,
-  "candidates_net_total": 1260,
+  "screened_median_per_snapshot": 228,
+  "screened_total": 33779,
+  "candidates_gross_median": 20,
+  "candidates_net_median": 8,
+  "candidates_gross_total": 3039,
+  "candidates_net_total": 1305,
   "worst": {
    "snapshot": "2026-09-11T15:39:09Z",
    "event_ticker": "KXNEXTTEAMNFL-26BSOR",
@@ -180,63 +180,63 @@
   "recurring_candidates": [
    {
     "event_ticker": "KXMOLDOVAPRES-28",
-    "snapshots": 124
+    "snapshots": 125
    },
    {
     "event_ticker": "KXNEWPOPE-70",
-    "snapshots": 124
+    "snapshots": 125
    },
    {
     "event_ticker": "KXNEXTSTATE-29",
-    "snapshots": 124
+    "snapshots": 125
    },
    {
     "event_ticker": "KXPRESMATCHUP-28NOV07",
-    "snapshots": 124
+    "snapshots": 125
    },
    {
     "event_ticker": "KXSENATENYD-28",
-    "snapshots": 124
+    "snapshots": 125
    },
    {
     "event_ticker": "KXSTATE51-29",
-    "snapshots": 124
+    "snapshots": 125
    },
    {
     "event_ticker": "KXTRUMPAGCOUNT-29",
-    "snapshots": 124
+    "snapshots": 125
    },
    {
     "event_ticker": "KXVPRESNOMR-28",
-    "snapshots": 124
+    "snapshots": 125
    },
    {
     "event_ticker": "KXNEXTDEPUTYAG-28JAN01",
-    "snapshots": 123
+    "snapshots": 124
    },
    {
     "event_ticker": "KXPRESTAIWAN-28",
-    "snapshots": 123
+    "snapshots": 124
    },
    {
     "event_ticker": "KXLONDONMAYOR-28MAY01",
-    "snapshots": 122
+    "snapshots": 123
    },
    {
     "event_ticker": "KXNEWROLEGS-35DEC",
-    "snapshots": 121
+    "snapshots": 122
    },
    {
     "event_ticker": "KXPRESNOMG-28",
-    "snapshots": 121
+    "snapshots": 122
    },
    {
     "event_ticker": "KXPRESTURKEYR1-28",
-    "snapshots": 120
+    "snapshots": 121
    },
    {
     "event_ticker": "KXDTICKET-28NOV07",
-    "snapshots": 96
+    "snapshots": 97
    }
   ]
  },
@@ -268,16 +268,16 @@
   "kalshi_reduced_multiplier_series": []
  },
  "calibration": {
-  "settlements_read": 38297,
+  "settlements_read": 38659,
   "settlement_files": 19,
   "settlement_roots": [
    "archive/settlements",
    "settlements"
   ],
   "settlements_by_venue": {
-   "kalshi": 11984,
+   "kalshi": 12315,
    "manifold": 452,
-   "polymarket": 25714,
+   "polymarket": 25745,
    "predictit": 147
   },
   "settlements_excluded": {
@@ -292,8 +292,8 @@
     "outcome price not 0 or 1": 108
    }
   },
-  "settled_markets_quoted_in_archive": 38297,
-  "snapshots_seen": 124,
+  "settled_markets_quoted_in_archive": 38659,
+  "snapshots_seen": 125,
   "horizons": [
    {
     "label": "1d",
@@ -325,7 +325,7 @@
    "predictit": "none recorded"
   },
   "observations": 4823,
-  "observations_rejected_stale": 16150,
+  "observations_rejected_stale": 16204,
   "observations_rejected_one_sided": 1024,
   "one_sided_rule": "a market/horizon cell whose only in-window quote had no bid or no ask is reported unscored: a one-sided book has not made a forecast, and its mid is not a price",
   "stale_rule": "a market/horizon cell whose newest quote at or before the cut-off was more than 24 h older than the cut-off is reported unscored rather than scored on a stale price",
@@ -1830,7 +1830,7 @@
   "pairs_verified": 0,
   "pairs_unverified": 4,
   "pairs_rejected": [],
-  "snapshots_seen": 124,
+  "snapshots_seen": 125,
   "min_observations": 20,
   "empty": true,
   "note": "No verified cross-venue pair is in events.yaml, so there is no basis to measure. The file ships as a skeleton of examples marked `verified: false`; pairing is a hand check of both venues' rules pages (identical entity, identical deadline) and unverified pairs are counted here and never priced.",
