@@ -1,0 +1,54 @@
+name: ci
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: install
+        run: |
+          set -o pipefail
+          python -m pip install -r requirements-dev.txt 2>&1 | tee -a ci.log
+          exit ${PIPESTATUS[0]}
+      - name: pytest
+        run: |
+          set -o pipefail
+          python -m pytest -q tests 2>&1 | tee -a ci.log
+          exit ${PIPESTATUS[0]}
+      # The stronger checks -- every workflow parses, names a job, and cannot
+      # push to main -- are in tests/test_workflows.py so they also run
+      # locally. This step is the smoke test that the file the runner reads
+      # is the file the tests read.
+      - name: workflow files are valid YAML
+        run: |
+          set -o pipefail
+          python - <<'EOF' 2>&1 | tee -a ci.log
+          import glob, yaml
+          for f in sorted(glob.glob(".github/workflows/*.yml")):
+              with open(f, encoding="utf-8") as fh:
+                  d = yaml.safe_load(fh)
+              assert "jobs" in d, f
+              print("ok", f)
+          EOF
+          exit ${PIPESTATUS[0]}
+      - name: save failure log
+        if: failure() && github.ref != 'refs/heads/main'
+        run: |
+          mkdir -p .ci
+          tail -c 60000 ci.log > .ci/last-failure-test.log 2>/dev/null || echo "no ci.log captured" > .ci/last-failure-test.log
+          git config user.name "ci-bot"
+          git config user.email "ci-bot@users.noreply.github.com"
+          git add .ci
+          git commit -m "ci: failure log [skip ci]" || exit 0
+          git pull --rebase origin "$GITHUB_REF_NAME" || true
+          git push origin "HEAD:$GITHUB_REF_NAME"

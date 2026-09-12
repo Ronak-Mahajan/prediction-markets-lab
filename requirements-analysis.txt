@@ -1,0 +1,9 @@
+# Phase 2 and 3 replay only. record.py, settle.py, screen.py and every pmlab
+# module except the plotting step run on the standard library alone;
+# `python -m pmlab.replay --no-plots` needs nothing from this file.
+matplotlib>=3.8
+numpy>=1.26
+# pmlab.basis reads the hand-curated events.yaml. Without it the replay
+# still runs and says out loud that events.yaml was not read, rather than
+# quietly reporting "no pairs" for a file full of them.
+PyYAML>=6.0
