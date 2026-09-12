@@ -70,8 +70,10 @@ jobs:
       # The per-blob screen cache (pmlab/cache.py). A snapshot's ladder,
       # complement and bucket counts depend on nothing but that snapshot's
       # bytes, so a blob whose sha256 has not moved is not screened again.
-      # Measured on the recording machine: a recorder-v2 snapshot costs
-      # 1.85 s to load and 0.98 s to screen, and the cache removes the 0.98.
+      # Measured by scripts/bench_replay.py on the recording machine: a
+      # recorder-v2 snapshot costs 0.74 s to load and 0.43 s to screen, and
+      # the cache removes the 0.43. End to end over 123 snapshots that was a
+      # median 40 s down to 12 s (five interleaved runs each).
       #
       # The key carries a hash of pmlab/ so a code change starts a fresh
       # cache; the cache file also carries its own code fingerprint and
@@ -83,7 +85,7 @@ jobs:
       # blob -- a market settling tomorrow is scored against a quote recorded
       # weeks ago -- so every blob is still read and decoded even when its
       # screens are cached, and only the rows the join can use are coerced.
-      # That leaves the gzip and JSON decode, about 0.8 s per v2 snapshot,
+      # That leaves the gzip and JSON decode, about 0.34 s per v2 snapshot,
       # growing with the archive. The next step when this job approaches ten
       # minutes again is a per-blob quote index written once and read instead
       # of the blob; raising the timeout is not the fix.
