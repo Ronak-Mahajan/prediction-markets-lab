@@ -2,10 +2,10 @@
  "backfill_cursor": "2026-08-23T00:00:00+00:00",
  "backfilled": true,
  "last_cap_hit": false,
- "last_kept": 331,
+ "last_kept": 2875,
  "last_mode": "incremental",
- "last_pages": 3,
- "last_run": "2026-09-11T21:56:09+00:00",
- "last_scanned": 2574,
- "watermark": "2026-09-11T21:54:08+00:00"
+ "last_pages": 13,
+ "last_run": "2026-09-12T01:11:14+00:00",
+ "last_scanned": 12464,
+ "watermark": "2026-09-12T01:10:58+00:00"
 }
