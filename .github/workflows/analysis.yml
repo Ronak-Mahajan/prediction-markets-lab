@@ -1,0 +1,162 @@
+name: analysis
+on:
+  schedule:
+    - cron: "13 6 * * *"      # daily, after the overnight recorder and the settle job
+  workflow_dispatch:
+  push:
+    branches: ["rebuild/**", "fix/**"]
+    paths:
+      - pmlab/**
+      - events.yaml
+      - screen.py
+      - scripts/check_readme.py
+      - README.md
+      - requirements-analysis.txt
+      - requirements-dev.txt
+      - .github/workflows/analysis.yml
+permissions:
+  contents: write
+concurrency:
+  group: analysis-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4          # code plus the 117 main-branch snapshots
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: install
+        run: |
+          set -o pipefail
+          python -m pip install -r requirements-dev.txt -r requirements-analysis.txt 2>&1 | tee -a ci.log
+          exit ${PIPESTATUS[0]}
+
+      - name: pytest
+        run: |
+          set -o pipefail
+          python -m pytest -q tests 2>&1 | tee -a ci.log
+          exit ${PIPESTATUS[0]}
+
+      # The data branch holds every snapshot recorder v2 writes. It does not
+      # exist until the first v2 run, and its absence is the ordinary state of
+      # a fresh branch: the replay then runs on data/ alone and stays green.
+      - name: probe data branch
+        id: probe
+        run: |
+          if git ls-remote --exit-code --heads origin data >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::the data branch does not exist yet; replaying data/ only"
+          fi
+
+      # Unlike the recorder and the settle job, the replay needs every blob,
+      # so this is a full tip checkout with no sparse cone. The checkout
+      # outgrows the runner's disk in about a year at the data branch's 2-8 MB
+      # a day; when it does, the fix is monthly Release assets, not a bigger
+      # runner.
+      - name: checkout data branch into ./archive
+        if: steps.probe.outputs.exists == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: data
+          path: archive
+          fetch-depth: 1
+
+      # The per-blob screen cache (pmlab/cache.py). A snapshot's ladder,
+      # complement and bucket counts depend on nothing but that snapshot's
+      # bytes, so a blob whose sha256 has not moved is not screened again.
+      # Measured by scripts/bench_replay.py on the recording machine: a
+      # recorder-v2 snapshot costs 0.74 s to load and 0.43 s to screen, and
+      # the cache removes the 0.43. End to end over 123 snapshots that was a
+      # median 40 s down to 12 s (five interleaved runs each).
+      #
+      # The key carries a hash of pmlab/ so a code change starts a fresh
+      # cache; the cache file also carries its own code fingerprint and
+      # discards itself on a mismatch, so correctness does not depend on the
+      # key being right. run_id makes every run save a new entry and the
+      # restore-keys prefix picks up the newest one with the same code.
+      #
+      # KNOWN LIMIT, still real: the settlement join is not a function of one
+      # blob -- a market settling tomorrow is scored against a quote recorded
+      # weeks ago -- so every blob is still read and decoded even when its
+      # screens are cached, and only the rows the join can use are coerced.
+      # That leaves the gzip and JSON decode, about 0.34 s per v2 snapshot,
+      # growing with the archive. The next step when this job approaches ten
+      # minutes again is a per-blob quote index written once and read instead
+      # of the blob; raising the timeout is not the fix.
+      - name: restore the replay cache
+        uses: actions/cache@v4
+        with:
+          path: .replaycache
+          key: replay-v1-${{ hashFiles('pmlab/*.py') }}-${{ github.run_id }}
+          restore-keys: |
+            replay-v1-${{ hashFiles('pmlab/*.py') }}-
+
+      # settle.py writes archive/settlements/<venue>/*.jsonl on the data
+      # branch, so the checkout above is also what makes the calibration
+      # tables possible. Zero settlements is a supported state: the
+      # calibration and basis sections then render an empty table with the
+      # reason and the job stays green.
+      - name: replay the archive
+        run: |
+          set -o pipefail
+          ARGS="--roots data archive/data"
+          ARGS="$ARGS --settlements archive/settlements settlements"
+          ARGS="$ARGS --events events.yaml"
+          ARGS="$ARGS --cache .replaycache/replay.json.gz"
+          python -m pmlab.replay $ARGS 2>&1 | tee -a ci.log
+          exit ${PIPESTATUS[0]}
+
+      # Sync, then verify. --write repairs numbers in README.md that the fresh
+      # results moved; the plain run afterwards is the gate, and it fails on
+      # anything --write could not fix (a marker naming a key that no longer
+      # exists, or all the markers deleted). A number edited by hand in a pull
+      # request fails the ci workflow, which never runs --write.
+      - name: sync README numbers to results
+        run: |
+          set -o pipefail
+          python scripts/check_readme.py --write 2>&1 | tee -a ci.log
+          exit ${PIPESTATUS[0]}
+
+      - name: README numbers match results
+        run: |
+          set -o pipefail
+          python scripts/check_readme.py --min-markers 10 2>&1 | tee -a ci.log
+          exit ${PIPESTATUS[0]}
+
+      - name: commit results to this branch
+        if: github.ref != 'refs/heads/main'
+        run: |
+          set -e
+          git config user.name "recorder"
+          git config user.email "actions@users.noreply.github.com"
+          git add results README.md
+          if git diff --cached --quiet; then
+            echo "results unchanged"; exit 0
+          fi
+          git commit -m "results: replay of the archive $(date -u +%Y-%m-%dT%H:%MZ) [skip ci]"
+          for i in 1 2 3 4 5; do
+            git pull --rebase origin "$GITHUB_REF_NAME" || { git rebase --abort || true; }
+            if git push origin "HEAD:$GITHUB_REF_NAME"; then
+              echo "pushed on attempt $i"; exit 0
+            fi
+            sleep $((5 * i))
+          done
+          echo "push failed after 5 attempts"; exit 1
+
+      - name: save failure log
+        if: failure() && github.ref != 'refs/heads/main'
+        run: |
+          mkdir -p .ci
+          tail -c 60000 ci.log > .ci/last-failure-analysis.log 2>/dev/null || echo "no ci.log captured" > .ci/last-failure-analysis.log
+          git config user.name "ci-bot"
+          git config user.email "ci-bot@users.noreply.github.com"
+          git add .ci
+          git commit -m "ci: failure log [skip ci]" || exit 0
+          git pull --rebase origin "$GITHUB_REF_NAME" || true
+          git push origin "HEAD:$GITHUB_REF_NAME"
