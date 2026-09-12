@@ -1,15 +1,15 @@
 # Coherence over the archive
 
-Generated 2026-09-11T21:55:21Z by `python -m pmlab.replay` at commit `b3fcbf67280f`.
+Generated 2026-09-12T01:12:13Z by `python -m pmlab.replay` at commit `e11fc7d791b9`.
 
-**Archive replayed:** 124 snapshots, 2026-08-23T01:18:06Z to 2026-09-11T21:47:34Z (19.9 days), realised cadence median 3.3 h / max 12.6 h.  
-**Archive identity (sha256 of the blob list):** `f484c27d85897b90e2cfa2b385ee904b7351363af1a47d24875f1272d5219618`
+**Archive replayed:** 125 snapshots, 2026-08-23T01:18:06Z to 2026-09-11T21:54:18Z (19.9 days), realised cadence median 3.3 h / max 12.6 h.  
+**Archive identity (sha256 of the blob list):** `82654f65bdb3391d131cd82aec48f5846b0b38a0ba95ad95f813a126a3b035ee`
 
 Every count below is produced twice: **gross**, and **net** of the venue's own fee with the venue's own rounding. The gap between the two columns is the result.
 
 ## The one-line answer
 
-Across 124 snapshots and 19.9 days, 315 gross ladder monotonicity inversions were found and 3 survived the fee model; 0 PredictIt and 43 Polymarket complement violations gross, 0 and 43 net; a median 20 bucket-sum candidates per snapshot gross and 8 net, all open-universe events. The Kalshi complement identity held on 1,802,195 of 1,802,195 two-sided books.
+Across 125 snapshots and 19.9 days, 320 gross ladder monotonicity inversions were found and 3 survived the fee model; 0 PredictIt and 43 Polymarket complement violations gross, 0 and 43 net; a median 20 bucket-sum candidates per snapshot gross and 8 net, all open-universe events. The Kalshi complement identity held on 1,849,537 of 1,849,537 two-sided books.
 
 Every inversion that survived the fee is in 1 event(s): `KXINXMINY-01JAN2027`. Those are the rows to go and read by hand; everything else in this file is a count.
 
@@ -20,12 +20,12 @@ Every inversion that survived the fee is in 1 event(s): `KXINXMINY-01JAN2027`. T
 | ladders per snapshot (median) | 1,121 |
 | ladders per snapshot (min-max, across both recorders) | 848-3,488 |
 | rungs per snapshot (median) | 7,976 |
-| adjacent strike pairs tested (total) | 979,752 |
-| monotonicity inversions, gross (total) | 315 |
+| adjacent strike pairs tested (total) | 1,005,901 |
+| monotonicity inversions, gross (total) | 320 |
 | monotonicity inversions, net of fee (total) | 3 |
-| snapshots with any gross inversion | 69 of 124 |
-| negative implied mass at mids, gross (total) | 20,753 |
-| ... whose magnitude exceeds two legs of fee | 8,876 |
+| snapshots with any gross inversion | 70 of 125 |
+| negative implied mass at mids, gross (total) | 22,654 |
+| ... whose magnitude exceeds two legs of fee | 9,498 |
 
 Worst gross inversion: `KXFEDFUNDSYEAR-32JAN01` on 2026-08-26T09:05:55Z, strike 2.25 ask 0.62 against strike 2.5 bid 0.65 -- 3.0c gross, 4.0c of fee on the two legs, -1.0c net.
 
@@ -34,9 +34,9 @@ Recorder v1 stopped at 2,000 events (about 14,000 markets, mostly the two midter
 | recorder | snapshots | adjacent pairs | inversions gross | net of fee |
 |---|---|---|---|---|
 | v1 (2,000-event cap) | 117 | 804,708 | 291 | 0 |
-| v2 (full catalog) | 7 | 175,044 | 24 | 3 |
+| v2 (full catalog) | 8 | 201,193 | 29 | 3 |
 
-Those 315 inversions are not spread across the catalog: they fall in 28 events.
+Those 320 inversions are not spread across the catalog: they fall in 28 events.
 
 | event | gross inversions |
 |---|---|
@@ -48,8 +48,8 @@ Those 315 inversions are not spread across the catalog: they fall in 28 events.
 | `KXFEDFUNDSYEAR-33JAN01` | 19 |
 | `KXFEDFUNDSYEAR-35JAN01` | 17 |
 | `KXFEDFUNDSYEAR-36JAN01` | 10 |
-| `KXMDT-26DECCARDGROW` | 7 |
-| `KXB200MAX-26DEC31` | 6 |
+| `KXMDT-26DECCARDGROW` | 8 |
+| `KXB200MAX-26DEC31` | 7 |
 
 The inversion screen is at the touch and is executable by construction: sell the higher strike at its bid, buy the lower at its ask. The negative-mass screen is at mids and is **not** a trade -- it says where the quoted curve is marked impossibly, which is a wider and softer statement. The two must not be read as the same number.
 
@@ -57,15 +57,15 @@ The inversion screen is at the touch and is executable by construction: sell the
 
 | venue | pairs per snapshot (median) | gross (total) | net (total) |
 |---|---|---|---|
-| Polymarket (quoted outcome pair) | 941.5 | 43 | 43 |
-| PredictIt (YES/NO asks) | 495.5 | 0 | 0 |
+| Polymarket (quoted outcome pair) | 941 | 43 | 43 |
+| PredictIt (YES/NO asks) | 496 | 0 | 0 |
 | Kalshi | not screened | - | - |
 
-Kalshi is not screened on purpose: `no_ask == 1 - yes_bid` held on 1,802,195 of 1,802,195 two-sided books across the whole archive (0 deviations), so YES ask plus NO ask is 1 plus the spread by construction and the screen cannot fire. It is asserted as an invariant: a single deviation fails this replay.
+Kalshi is not screened on purpose: `no_ask == 1 - yes_bid` held on 1,849,537 of 1,849,537 two-sided books across the whole archive (0 deviations), so YES ask plus NO ask is 1 plus the spread by construction and the screen cannot fire. It is asserted as an invariant: a single deviation fails this replay.
 
 Screened on the venue's quoted outcome-price pair, not on two asks: the complementary token's book is not in this archive (a recorder gap). A violation is an incoherent quote, not a demonstrated trade.
 
-All 43 Polymarket violations fall in the 68 snapshots of the string-sorted era (2026-08-23 to 2026-09-01T16:44Z), when the venue served `order=liquidity` sorted as text and the recorder kept the result: thin, often already-expired rows. The 56 snapshots of the clean `liquidityNum` era carry 0. That is a statement about the recorder, not about the venue's quotes.
+All 43 Polymarket violations fall in the 68 snapshots of the string-sorted era (2026-08-23 to 2026-09-01T16:44Z), when the venue served `order=liquidity` sorted as text and the recorder kept the result: thin, often already-expired rows. The 57 snapshots of the clean `liquidityNum` era carry 0. That is a statement about the recorder, not about the venue's quotes.
 
 ## Bucket sums
 
@@ -79,24 +79,24 @@ Most persistent candidates (snapshots in which the event was flagged):
 
 | event | snapshots |
 |---|---|
-| `KXMOLDOVAPRES-28` | 124 |
-| `KXNEWPOPE-70` | 124 |
-| `KXNEXTSTATE-29` | 124 |
-| `KXPRESMATCHUP-28NOV07` | 124 |
-| `KXSENATENYD-28` | 124 |
-| `KXSTATE51-29` | 124 |
-| `KXTRUMPAGCOUNT-29` | 124 |
-| `KXVPRESNOMR-28` | 124 |
-| `KXNEXTDEPUTYAG-28JAN01` | 123 |
-| `KXPRESTAIWAN-28` | 123 |
+| `KXMOLDOVAPRES-28` | 125 |
+| `KXNEWPOPE-70` | 125 |
+| `KXNEXTSTATE-29` | 125 |
+| `KXPRESMATCHUP-28NOV07` | 125 |
+| `KXSENATENYD-28` | 125 |
+| `KXSTATE51-29` | 125 |
+| `KXTRUMPAGCOUNT-29` | 125 |
+| `KXVPRESNOMR-28` | 125 |
+| `KXNEXTDEPUTYAG-28JAN01` | 124 |
+| `KXPRESTAIWAN-28` | 124 |
 
 A bucket-sum candidate is NOT an arbitrage. The venue's mutually_exclusive flag promises at most one bucket settles YES, not that the listed buckets are exhaustive; the survivors on real data are open-universe events (next pope, 51st state, party nominations) whose missing 'someone else' bucket is exactly the mass that makes the asks sum below a dollar. Read the event rules before believing any row of this table.
 
 ## Calibration
 
-Settlements read: 38,297 markets from 19 file(s) (kalshi 11,984, manifold 452, polymarket 25,714, predictit 147). Scored forecasts: 4,774 (plus 49 inferred PredictIt outcomes held out of every headline number).
+Settlements read: 38,659 markets from 19 file(s) (kalshi 12,315, manifold 452, polymarket 25,745, predictit 147). Scored forecasts: 4,774 (plus 49 inferred PredictIt outcomes held out of every headline number).
 
-Each market is scored at the **last quote at or before `settled_at - H`**, used only if it is no more than 24 h older than that cut-off. 16,150 market/horizon cells had a quote before the cut-off but only a stale one, and 1,024 had only a one-sided book; both are reported unscored rather than scored on a price nobody was quoting. The baseline everywhere is a coin flip: Brier 0.25, log score -0.6931.
+Each market is scored at the **last quote at or before `settled_at - H`**, used only if it is no more than 24 h older than that cut-off. 16,204 market/horizon cells had a quote before the cut-off but only a stale one, and 1,024 had only a one-sided book; both are reported unscored rather than scored on a price nobody was quoting. The baseline everywhere is a coin flip: Brier 0.25, log score -0.6931.
 
 **Read the `blocks` column before the `n` column.** A block is one venue's settlements on one day, and markets that resolve together do not resolve independently: a thousand forecasts spread over four settlement days is four observations of the world wearing a large `n`. The block bootstrap prices that in and the Wilson interval does not; below 3 blocks no bootstrap interval is reported at all, because resampling two blocks produces an interval about the block count rather than about the data.
 
