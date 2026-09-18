@@ -111,12 +111,70 @@ def test_unrounded_model_undercharges_at_the_tails():
     assert fees.kalshi_taker_fee(0.01) > 14 * unrounded
 
 
-def test_reduced_multiplier_table_is_empty_and_documented():
-    """The owner fills this from the fee-schedule PDF; nothing here guesses it."""
-    assert fees.KALSHI_REDUCED_TAKER_MULTIPLIER == {}
-    assert fees.kalshi_taker_multiplier("KXINXY") == fees.KALSHI_TAKER_MULTIPLIER
+def test_reduced_multiplier_table_matches_the_captured_feed():
+    """The table is Kalshi's own feed, re-derived here so it cannot drift.
+
+    The fee-schedule PDF is unreadable from this machine, but the same
+    numbers are served by the public fee_changes endpoint, whose response is
+    captured verbatim in docs/. This rebuilds the table from that file and
+    fails if the constant disagrees with it by one series or one digit.
+    """
+    import json
+    from decimal import Decimal
+    from pathlib import Path
+
+    capture = (Path(__file__).resolve().parents[1] / "docs"
+               / "kalshi-series-fee-changes-2026-09-16.json")
+    rows = json.loads(capture.read_text(encoding="utf-8"))["series_fee_change_arr"]
+
+    # Only the quadratic kinds price a taker. A market-maker-program row
+    # describes a different charge and must not move the taker multiplier.
+    taker = {"quadratic", "quadratic_with_maker_fees",
+             "quadratic_with_combo_maker_fees"}
+    latest: dict[str, dict] = {}
+    for r in rows:
+        if r["fee_type"] not in taker or r["scheduled_ts"][:10] > "2026-09-16":
+            continue
+        t = r["series_ticker"]
+        if t not in latest or r["scheduled_ts"] > latest[t]["scheduled_ts"]:
+            latest[t] = r
+    derived = {t: (Decimal("0.07") * Decimal(str(r["fee_multiplier"])))
+               for t, r in latest.items() if r["fee_multiplier"] != 1}
+
+    table = fees.KALSHI_REDUCED_TAKER_MULTIPLIER
+    assert set(table) == set(derived), (set(table) ^ set(derived))
+    for t, m in derived.items():
+        assert table[t] == m, (t, table[t], m)
+    assert table, "the feed lists reduced series; an empty table means a bad read"
+
+
+def test_reduced_multiplier_is_relative_to_the_general_rate():
+    """0.5 in the feed is half the general fee, which Kalshi stated in cents.
+
+    Kalshi announced the S&P and Nasdaq change as 1.75c -> 0.875c per
+    contract at the midpoint. The general rate gives 0.07 * 0.25 = 1.75c, so
+    a halved series must give 0.875c before rounding, i.e. 0.035.
+    """
+    from decimal import Decimal
+    assert fees.KALSHI_TAKER_MULTIPLIER * Decimal("0.25") == Decimal("0.0175")
+    half = fees.KALSHI_REDUCED_TAKER_MULTIPLIER["KXMLBGAME"]
+    assert half == Decimal("0.035")
+    assert half * Decimal("0.25") == Decimal("0.00875")
+
+
+def test_a_zero_fee_series_is_charged_nothing():
+    """KXGDPYEAR pays no fee from 2026-07-28, before this archive opens."""
+    assert fees.KALSHI_REDUCED_TAKER_MULTIPLIER["KXGDPYEAR"] == 0
+    assert fees.kalshi_taker_fee(0.50, 1, "KXGDPYEAR") == 0.0
+    assert fees.kalshi_taker_fee(0.01, 100, "KXGDPYEAR") == 0.0
+    # and an unlisted series still pays the general rate
+    assert fees.kalshi_taker_fee(0.50, 1, "KXINXY") == 0.02
+
+
+def test_reduced_table_is_documented_as_not_the_pdf():
     caveats = " ".join(fees.FEE_MODELS["kalshi"].caveats)
-    assert "EMPTY" in caveats
+    assert "fee_changes" in caveats and "PDF" in caveats
+    assert "flat in time" in caveats
 
 
 def test_reduced_multiplier_is_honoured_when_filled(monkeypatch):
