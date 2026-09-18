@@ -202,9 +202,10 @@ cents of fee the two legs cost (a taker leg can never cost more than two
 cents, and never less than one), and they were not spread across the
 catalog either — the archive's
 462 <!-- results:ladders.inversions_gross_total --> gross inversions fall
-in 96 <!-- results:ladders.inversion_events --> events out of a catalog of
-7,309, three fifths of them in the long-dated `KXFEDFUNDSYEAR-3x` and
-`KXUSCPIYEAR` ladders that settle years out and that nobody is minding.
+in 96 <!-- results:ladders.inversion_events --> events, against the 7,309
+the newest snapshot alone carries, and three fifths of them are in the
+long-dated `KXFEDFUNDSYEAR-3x` and `KXUSCPIYEAR` ladders that settle years
+out and that nobody is minding.
 
 **A reading is not a finding.** Every ladder is screened again in every
 snapshot, so a mispricing nobody corrects is counted once per snapshot it
