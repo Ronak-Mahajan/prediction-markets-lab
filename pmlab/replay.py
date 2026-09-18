@@ -146,6 +146,8 @@ def _detail_of(lad, poly, pi, buc) -> dict:
         "worst_net_inversion": inv(lad.worst_net_inversion),
         "inversions_by_event": dict(lad.inversions_by_event),
         "net_inversion_events": list(lad.net_inversions),
+        "inversion_pairs": list(lad.inversion_pairs),
+        "net_inversion_pairs": list(lad.net_inversion_pairs),
         "worst_poly": None if poly.worst is None else {
             "market_id": poly.worst.market_id, "question": poly.worst.question,
             "prices": list(poly.worst.prices), "total": poly.worst.total,
@@ -454,6 +456,26 @@ def summarise(rows: list[dict], paths: list[Path], roots: tuple[str, ...],
     summary["ladders"]["net_inversion_events"] = len(net_by_event)
     summary["ladders"]["net_inversion_event_tickers"] = sorted(net_by_event)[:12]
     summary["ladders"]["inversion_events"] = len(by_event)
+    # A count of readings is not a count of findings. The recorder re-screens
+    # every ladder every few hours, so an inversion nobody corrects is
+    # counted again in every snapshot it survives. These are the same two
+    # counts asked of the (event, lower strike, upper strike) triples.
+    pairs: dict[str, int] = {}
+    net_pairs: set[str] = set()
+    for r in rows:
+        for k in r["_detail"]["inversion_pairs"]:
+            pairs[k] = pairs.get(k, 0) + 1
+        net_pairs.update(r["_detail"]["net_inversion_pairs"])
+    summary["ladders"]["inversion_strike_pairs"] = len(pairs)
+    summary["ladders"]["net_inversion_strike_pairs"] = len(net_pairs)
+    summary["ladders"]["inversion_strike_pairs_seen_once"] = sum(
+        1 for n in pairs.values() if n == 1)
+    summary["ladders"]["readings_per_inverted_strike_pair"] = round(
+        summary["ladders"]["inversions_gross_total"] / len(pairs), 2
+    ) if pairs else 0.0
+    top = max(pairs.items(), key=lambda kv: (kv[1], kv[0])) if pairs else None
+    summary["ladders"]["most_repeated_strike_pair"] = None if top is None else {
+        "pair": top[0], "readings": top[1]}
     summary["ladders"]["top_inversion_events"] = [
         {"event_ticker": k, "inversions": v}
         for k, v in sorted(by_event.items(), key=lambda kv: (-kv[1], kv[0]))[:12]]
@@ -846,8 +868,11 @@ def render_results_readme(s: dict) -> str:
     w(f"Across {_fmt(a['snapshots'])} snapshots and "
       f"{_fmt(a['days_spanned'], 1)} days, "
       f"{_fmt(lad['inversions_gross_total'])} gross ladder monotonicity "
-      f"inversions were found and "
-      f"{_fmt(lad['inversions_net_total'])} survived the fee model; "
+      f"inversions were read on "
+      f"{_fmt(lad.get('inversion_strike_pairs'))} distinct strike pairs and "
+      f"{_fmt(lad['inversions_net_total'])} readings on "
+      f"{_fmt(lad.get('net_inversion_strike_pairs'))} pairs survived the fee "
+      f"model; "
       f"{_fmt(pi['gross_total'])} PredictIt and "
       f"{_fmt(poly['gross_total'])} Polymarket complement violations gross, "
       f"{_fmt(pi['net_total'])} and {_fmt(poly['net_total'])} net; a median "
@@ -877,7 +902,10 @@ def render_results_readme(s: dict) -> str:
     w(f"| rungs per snapshot (median) | {_fmt(lad['rungs_median_per_snapshot'])} |")
     w(f"| adjacent strike pairs tested (total) | {_fmt(lad['adjacent_pairs_total'])} |")
     w(f"| monotonicity inversions, gross (total) | {_fmt(lad['inversions_gross_total'])} |")
+    w(f"| ... on distinct (event, lower strike, upper strike) triples "
+      f"| {_fmt(lad.get('inversion_strike_pairs'))} |")
     w(f"| monotonicity inversions, net of fee (total) | {_fmt(lad['inversions_net_total'])} |")
+    w(f"| ... on distinct triples | {_fmt(lad.get('net_inversion_strike_pairs'))} |")
     w(f"| snapshots with any gross inversion | {_fmt(lad['snapshots_with_gross_inversion'])} of {_fmt(a['snapshots'])} |")
     w(f"| negative implied mass at mids, gross (total) | {_fmt(lad['negative_mass_gross_total'])} |")
     w(f"| ... whose magnitude exceeds two legs of fee | {_fmt(lad['negative_mass_beyond_fee_total'])} |")
@@ -908,9 +936,15 @@ def render_results_readme(s: dict) -> str:
               f"| {_fmt(d.get('inversions_net'))} |")
         w("")
     if lad.get("top_inversion_events"):
-        w(f"Those {_fmt(lad['inversions_gross_total'])} inversions are not "
-          f"spread across the catalog: they fall in "
-          f"{_fmt(lad['inversion_events'])} events.")
+        w(f"Those {_fmt(lad['inversions_gross_total'])} inversions are "
+          f"readings, not findings: every ladder is screened again in every "
+          f"snapshot, so they are "
+          f"{_fmt(lad.get('inversion_strike_pairs'))} distinct strike pairs "
+          f"seen {_fmt(lad.get('readings_per_inverted_strike_pair'), 2)} "
+          f"times apiece on average, "
+          f"{_fmt(lad.get('inversion_strike_pairs_seen_once'))} of them "
+          f"exactly once. Nor are they spread across the catalog: they fall "
+          f"in {_fmt(lad['inversion_events'])} events.")
         w("")
         w("| event | gross inversions |")
         w("|---|---|")
