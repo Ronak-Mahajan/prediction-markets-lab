@@ -18,7 +18,7 @@ live, so every later study has an archive it can replay.
 
 | venue | recorded per snapshot (recorder v2) | source |
 |---|---|---|
-| Kalshi | every open non-Sports market plus the 3,000 highest-open-interest Sports markets, with event metadata. On the newest recorded snapshot (2026-09-11T20:03Z) that swept 135,289 open markets, 81,664 of them Sports, and kept 56,625 across 7,266 events | official public API v2 |
+| Kalshi | every open non-Sports market plus the 3,000 highest-open-interest Sports markets, with event metadata. On the newest recorded snapshot (2026-09-18T17:43Z) that swept 135,431 open markets, 81,687 of them Sports, and kept 56,744 across 7,309 events | official public API v2 |
 | Polymarket | top 1,000 by `liquidityNum`, sorted client-side, rows already past their `endDate` dropped | gamma API |
 | PredictIt | full catalog (about 190 markets, about 590 contracts) | official API |
 | Manifold | 1,000 most liquid open binaries (`search-markets?sort=liquidity`) | official API |
@@ -41,8 +41,9 @@ markets; those blobs are kept unchanged and load through the same loader
 
 Snapshots live in two places and history is never rewritten:
 
-- `data/` on `main`: the first 117 snapshots (2026-08-23 to 2026-09-11,
-  about 71 MB, recorder v1). They stay where they are.
+- `data/` on `main`: the 125 recorder-v1 snapshots (2026-08-23 to
+  2026-09-12, about 74 MB). They stay where they are, and nothing is
+  added to them: v2 writes to the `data` branch below.
 - the orphan `data` branch: every snapshot from recorder v2 onward under
   `data/YYYYMMDD/HHMMZ.json.gz`, a `manifest.json` with the sha256 and
   size of every blob plus an archive identity hash, and `settlements/`
@@ -155,11 +156,11 @@ that still grows with the archive; the next step, when the job approaches
 its ten-minute budget again, is a per-blob quote index written once and
 read instead of the blob.
 
-**Archive replayed:** 150 <!-- results:archive.snapshots --> snapshots
-from 2026-08-23 to 2026-09-11 — 24.0 <!-- results:archive.days_spanned -->
-days, realised cadence median 3.4 <!-- results:archive.median_gap_hours -->
+**Archive replayed:** 163 <!-- results:archive.snapshots --> snapshots
+from 2026-08-23 to 2026-09-18 — 26.7 <!-- results:archive.days_spanned -->
+days, realised cadence median 3.5 <!-- results:archive.median_gap_hours -->
 h — of which 125 <!-- results:archive.schema1_snapshots --> come from
-recorder v1 and 25 <!-- results:archive.schema2_snapshots --> from v2.
+recorder v1 and 38 <!-- results:archive.schema2_snapshots --> from v2.
 
 ### Ladders
 
@@ -171,7 +172,7 @@ different experiments as one, so the headline is split.
 | recorder | snapshots | adjacent strike pairs tested | inversions gross | net of fee |
 |---|---|---|---|---|
 | v1 (2,000-event cap) | 125 <!-- results:ladders.by_recorder.schema1.snapshots --> | 861,844 <!-- results:ladders.by_recorder.schema1.adjacent_pairs --> | 293 <!-- results:ladders.by_recorder.schema1.inversions_gross --> | 0 <!-- results:ladders.by_recorder.schema1.inversions_net --> |
-| v2 (full catalog) | 25 <!-- results:ladders.by_recorder.schema2.snapshots --> | 628,014 <!-- results:ladders.by_recorder.schema2.adjacent_pairs --> | 107 <!-- results:ladders.by_recorder.schema2.inversions_gross --> | 7 <!-- results:ladders.by_recorder.schema2.inversions_net --> |
+| v2 (full catalog) | 38 <!-- results:ladders.by_recorder.schema2.snapshots --> | 941,302 <!-- results:ladders.by_recorder.schema2.adjacent_pairs --> | 169 <!-- results:ladders.by_recorder.schema2.inversions_gross --> | 11 <!-- results:ladders.by_recorder.schema2.inversions_net --> |
 
 An inversion is a higher strike bid over a lower strike's ask: sell the
 higher, buy the lower, and the pair pays whatever happens, because the
@@ -184,37 +185,74 @@ at a one-cent contract is fourteen times too little; that single
 correction is the whole difference between "a one-cent inversion
 survives" and "it does not".
 
+Kalshi prices some series below the general 0.07 multiplier. Those
+per-series rates are read from the venue's own public
+`series/fee_changes` endpoint, captured verbatim in
+[`docs/`](docs/kalshi-series-fee-changes-2026-09-16.json) and re-derived
+from that capture by a test so the table and its source cannot drift; 49
+series are discounted, none of which any inversion in this archive is on.
+Replaying with the table and with it emptied gives the same inversion
+counts, gross and net. The fee-schedule PDF is still unread from here: it
+answers HTTP 429.
+
 Over the recorder-v1 slice the answer is a clean negative: not one
 of the 293 <!-- results:ladders.by_recorder.schema1.inversions_gross -->
 gross inversions was wider than three cents, against the two to four
 cents of fee the two legs cost (a taker leg can never cost more than two
 cents, and never less than one), and they were not spread across the
 catalog either — the archive's
-400 <!-- results:ladders.inversions_gross_total --> gross inversions fall
-in 68 <!-- results:ladders.inversion_events --> events, overwhelmingly the
-long-dated `KXFEDFUNDSYEAR-3x` and `KXUSCPIYEAR` ladders that settle years
-out and that nobody is minding.
+462 <!-- results:ladders.inversions_gross_total --> gross inversions fall
+in 96 <!-- results:ladders.inversion_events --> events out of a catalog of
+7,309, three fifths of them in the long-dated `KXFEDFUNDSYEAR-3x` and
+`KXUSCPIYEAR` ladders that settle years out and that nobody is minding.
 
-The v2 slice is 25 <!-- results:ladders.by_recorder.schema2.snapshots -->
+**A reading is not a finding.** Every ladder is screened again in every
+snapshot, so a mispricing nobody corrects is counted once per snapshot it
+survives. Those 462 <!-- results:ladders.inversions_gross_total --> gross
+readings are 135 <!-- results:ladders.inversion_strike_pairs --> distinct
+(event, lower strike, upper strike) triples —
+3.42 <!-- results:ladders.readings_per_inverted_strike_pair --> readings
+apiece — of which 80 <!-- results:ladders.inversion_strike_pairs_seen_once -->
+were seen exactly once and the most persistent was seen
+36 <!-- results:ladders.most_repeated_strike_pair.readings --> times. The
+distinct count is the one a claim about findings has to use; the raw count
+is a count of observations.
+
+The v2 slice is 38 <!-- results:ladders.by_recorder.schema2.snapshots -->
 snapshots so far and is reported as the preliminary thing it is, but it is
 already more interesting:
-7 <!-- results:ladders.inversions_net_total --> inversions survive the fee,
-across 2 <!-- results:ladders.net_inversion_events --> events. Three are
-`KXINXMINY-01JAN2027`, the "minimum S&P 500 value by Jan 1 2027" ladder,
-where the bid on P(min ≤ 6,000.01) stood *above* the ask on
-P(min ≤ 6,100.01) even though the first outcome implies the second: 3.0c
-gross against 2.0c of fee, 1.0c net. The other four are
-`KXARTISTSTREAMSY-ODDMOB26DEC31`, a Luminate streams ladder on one artist's
-2026 total, where the ask at 125M sat below the bid at 130M: 5.0c gross
-against 4.0c of fee, 1.0c net. Between them they appear in
-7 <!-- results:ladders.snapshots_with_net_inversion --> of those snapshots,
-0.4c to 1.0c net, spread across 11 to 15 September. Seven readings in two
-events is an observation, not a rate, and it needs weeks of v2 recording
-before it is a result. What it is not is invisible — it is in the catalog
-at all only because v2 lifted the 2,000-event cap. The reduced-fee question
-behind it is now closed rather than open: Kalshi's own fee feed prices
-neither series below the general rate, so these net edges are exactly what
-they say.
+11 <!-- results:ladders.inversions_net_total --> readings survive the fee.
+They are 6 <!-- results:ladders.net_inversion_strike_pairs --> distinct
+strike pairs in 3 <!-- results:ladders.net_inversion_events --> events, seen
+in 9 <!-- results:ladders.snapshots_with_net_inversion --> of those
+snapshots.
+
+- `KXINXMINY-01JAN2027`, the "minimum S&P 500 value by Jan 1 2027" ladder:
+  one pair, the 6,000.01 and 6,100.01 rungs, where the bid on P(min ≤
+  6,000.01) stood *above* the ask on P(min ≤ 6,100.01) even though the
+  first outcome implies the second. Three readings on 11 September, 2.4c
+  to 3.0c gross against 2.0c of fee, so 0.4c to 1.0c net.
+- `KXARTISTSTREAMSY-ODDMOB26DEC31`, a Luminate streams ladder on one
+  artist's 2026 total: one pair, where the ask at 125M sat below the bid
+  at 130M. Four readings across 14 and 15 September, 5.0c gross against
+  4.0c of fee, 1.0c net.
+- `KXUSDBRLAW-26SEP18`, a USD/BRL ladder that settled on 18 September:
+  four pairs, four readings on 16 and 17 September, 6.0c to
+  19.0 <!-- results:ladders.worst_net_inversion.gross_edge_cents --> c
+  gross against 4.0c of fee, up to
+  15.0 <!-- results:ladders.worst_net_inversion.net_edge_cents --> c net.
+  That ladder is barely marked: in the 16 September snapshot three
+  consecutive strikes two-tenths of a centavo apart carry asks of 0.99,
+  0.35 and 0.84, and open interest per rung is in the single and double
+  digits. The recorder stores open interest, not book depth, so none of
+  these is a claim about size.
+
+Eleven readings of six pairs is an observation, not a rate, and it needs
+weeks of v2 recording before it is a result. What it is not is invisible —
+all six are in the catalog at all only because v2 lifted the 2,000-event
+cap. The reduced-fee question behind them is closed rather than open:
+Kalshi's own fee feed prices none of these three series below the general
+rate, so these net edges are exactly what they say.
 
 Two false positives were removed before publishing these counts, both
 worth naming because the structured fields invited them: `KXNFLSPREAD`
@@ -229,7 +267,7 @@ refused.
 
 At mids rather than at the touch, the same ladders imply negative
 probability mass between adjacent strikes
-42,278 <!-- results:ladders.negative_mass_gross_total --> times. That is a
+58,015 <!-- results:ladders.negative_mass_gross_total --> times. That is a
 statement about where quotes are marked, not a trade, and the two numbers
 are kept apart on purpose.
 
@@ -237,30 +275,30 @@ are kept apart on purpose.
 
 Kalshi is not screened, because the screen cannot fire there:
 `no_ask == 1 - yes_bid` held on
-2,736,645 <!-- results:kalshi_identity.books_checked_total --> of
-2,736,645 <!-- results:kalshi_identity.books_checked_total --> two-sided
+3,333,182 <!-- results:kalshi_identity.books_checked_total --> of
+3,333,182 <!-- results:kalshi_identity.books_checked_total --> two-sided
 books, 0 <!-- results:kalshi_identity.deviations_total --> deviations, so
 YES ask + NO ask is 1 + spread by construction. The replay asserts the
 identity and fails the build if it ever breaks — a venue changing its data
 model is a thing to look at, not a result to publish.
 
 Where the screen can fire:
-73,756 <!-- results:predictit_complement.pairs_total --> PredictIt YES/NO
+80,228 <!-- results:predictit_complement.pairs_total --> PredictIt YES/NO
 ask pairs give 0 <!-- results:predictit_complement.gross_total -->
-violations gross. 139,012 <!-- results:polymarket_complement.pairs_total -->
+violations gross. 150,513 <!-- results:polymarket_complement.pairs_total -->
 Polymarket quoted outcome pairs give
 43 <!-- results:polymarket_complement.gross_total -->, and all
 43 <!-- results:polymarket_complement.gross_string_sorted_era --> of them
 are inside the string-sorted era, against
 0 <!-- results:polymarket_complement.gross_numeric_era --> in the
-82 <!-- results:polymarket_complement.snapshots_numeric_era --> clean
+95 <!-- results:polymarket_complement.snapshots_numeric_era --> clean
 snapshots. The incoherent quotes are in the thin, often already-expired
 rows the recorder's broken sort surfaced, which makes that a finding about
 this repo rather than about Polymarket.
 
 ### Bucket sums
 
-A median of 228 <!-- results:buckets.screened_median_per_snapshot -->
+A median of 230 <!-- results:buckets.screened_median_per_snapshot -->
 mutually exclusive events per snapshot are fully quoted;
 21 <!-- results:buckets.candidates_gross_median --> of them sum below a
 dollar gross and 9 <!-- results:buckets.candidates_net_median --> net of
@@ -269,24 +307,27 @@ party nominations, Moldovan president — which is the open-universe trap
 this screen exists to name rather than fall into: the missing "someone
 else" bucket is the missing mass.
 
-### The one-line answer, dated 2026-09-11
+### The one-line answer, dated 2026-09-18
 
-Over 24.0 <!-- results:archive.days_spanned --> days and
-150 <!-- results:archive.snapshots --> snapshots —
-1,489,858 <!-- results:ladders.adjacent_pairs_total --> adjacent strike
-pairs, 73,756 <!-- results:predictit_complement.pairs_total --> PredictIt
-pairs, 139,012 <!-- results:polymarket_complement.pairs_total -->
-Polymarket pairs, 51,347 <!-- results:buckets.screened_total --> screened
+Over 26.7 <!-- results:archive.days_spanned --> days and
+163 <!-- results:archive.snapshots --> snapshots —
+1,803,146 <!-- results:ladders.adjacent_pairs_total --> adjacent strike
+pairs, 80,228 <!-- results:predictit_complement.pairs_total --> PredictIt
+pairs, 150,513 <!-- results:polymarket_complement.pairs_total -->
+Polymarket pairs, 63,066 <!-- results:buckets.screened_total --> screened
 bucket-sum events — honest fee accounting erases every coherence violation
-the screens can find, with two exceptions, and both appeared the moment the
-recorder stopped truncating the catalog: `KXINXMINY-01JAN2027`, the
-S&P-500-minimum ladder, and `KXARTISTSTREAMSY-ODDMOB26DEC31`, a Luminate
-streams ladder, inverted by up to
-1.0 <!-- results:ladders.worst_net_inversion.net_edge_cents --> cent net
-of fee in 7 <!-- results:ladders.snapshots_with_net_inversion --> of the
-25 <!-- results:ladders.by_recorder.schema2.snapshots --> recorder-v2
-snapshots recorded so far. Both halves of that sentence get published at
-the same size.
+the screens can find except
+6 <!-- results:ladders.net_inversion_strike_pairs --> strike pairs in
+3 <!-- results:ladders.net_inversion_events --> Kalshi events, seen
+11 <!-- results:ladders.inversions_net_total --> times between 11 and 17
+September, the widest
+15.0 <!-- results:ladders.worst_net_inversion.net_edge_cents --> cents net
+of fee on a barely-marked USD/BRL ladder. Every one of them appeared the
+moment the recorder stopped truncating the catalog: the recorder-v1 slice,
+125 <!-- results:ladders.by_recorder.schema1.snapshots --> snapshots and
+861,844 <!-- results:ladders.by_recorder.schema1.adjacent_pairs --> adjacent
+pairs, has 0 <!-- results:ladders.by_recorder.schema1.inversions_net -->.
+Both halves of that sentence get published at the same size.
 
 ### Cross-venue basis
 
@@ -351,8 +392,10 @@ older than that cut-off. The age cap is the part that makes the rest
 trustworthy: without it a market that settled on 2026-09-10 and was last
 quoted on 2026-08-23 would be scored as a one-day-ahead forecast when it
 is an eighteen-day-ahead one, and the 1 d column would quietly fill with
-stale prices. 24 h is just under twice the worst gap the recorder has
-actually produced against its 3.3 h median, so a normally-quoted market
+stale prices. 24 h is just under twice the
+12.6 <!-- results:archive.max_gap_hours --> h worst gap the recorder has
+actually produced against its 3.5 <!-- results:archive.median_gap_hours -->
+h median, so a normally-quoted market
 always has a usable quote and a market the recorder missed is reported
 missing rather than invented. A horizon longer than the archive is
 therefore empty *by construction*, and the table says which date would
@@ -382,28 +425,38 @@ headline number: the public feed carries open markets only, so its
 outcomes are *inferred* from the last trade of a contract that vanished,
 and scoring a forecast against a guess is not a measurement.
 
-**Coverage today.** 88,688 <!-- results:calibration.settlements_read -->
+**Coverage today.** 148,861 <!-- results:calibration.settlements_read -->
 settled markets have been captured, and
-10,669 <!-- results:calibration.observations_headline --> market/horizon
+13,911 <!-- results:calibration.observations_headline --> market/horizon
 cells have both an outcome and a usable pre-settlement quote; another
-18,589 <!-- results:calibration.observations_rejected_stale --> were
+18,965 <!-- results:calibration.observations_rejected_stale --> were
 refused for a stale quote and
-4012 <!-- results:calibration.observations_rejected_one_sided --> for a
-one-sided book. The scores themselves live in
+5413 <!-- results:calibration.observations_rejected_one_sided --> for a
+one-sided book. Of the
+12,289 <!-- results:calibration.composition.n --> cells behind the 1 d
+headline, 2,414 <!-- results:calibration.composition.by_era.string_sorted -->
+are Polymarket rows from the string-sorted era — the recorder's broken
+sort, which surfaced thin and often already-expired markets — against
+769 <!-- results:calibration.composition.by_era.numeric --> from the clean
+era. Every incoherent Polymarket quote this repo found is in that same
+era, so about a fifth of the headline sample comes from the slice of the
+archive this repo trusts least. The scores themselves live in
 [`results/README.md`](results/README.md) with their composition table
 attached, and they should be read with it: this is not a random sample of
 any venue's catalog, it is the set of markets that happened to resolve
-inside a three-week recording window, which skews hard towards short-dated
+inside a 26.7 <!-- results:archive.days_spanned --> day recording window,
+which skews hard towards short-dated
 sports and towards whatever the recorder's Polymarket slice held at the
 time. The sample gets less strange every week the cron runs.
 
 **The schedule.** Polymarket settles first and in volume: of the 1,000
-rows in the newest recorded snapshot (2026-09-11T20:03Z), 471 end before
-2026-11-04 and 300 end in September, so the first table with a large `n`
+rows in the newest recorded snapshot (2026-09-18T17:43Z), 529 end before
+2026-11-04 and 403 end in September, so the first table with a large `n`
 spread across many settlement days is an autumn 2026 table. That count is
 of one snapshot's slice, not of the archive: the recorder keeps the top
-1,000 by liquidity and the slice turns over, so across all 123 snapshots
-35,996 distinct Polymarket ids have been seen.
+1,000 by liquidity and the slice turns over, so across all
+163 <!-- results:archive.snapshots --> snapshots 39,642 distinct Polymarket
+ids have been seen.
 
 Kalshi arrives later than the midterms suggest. The
 recorded Kalshi election markets are the `KXMIDTERMMOV` margin-of-victory
