@@ -157,6 +157,34 @@ def test_net_never_exceeds_gross_in_any_row():
                 <= int(r["ladder_negative_mass_gross"]))
 
 
+def test_distinct_inverted_strike_pairs_bound_the_readings():
+    """A published count of findings cannot exceed the count of readings.
+
+    The archive re-screens every ladder every few hours, so one uncorrected
+    mispricing shows up once per snapshot it survives. The summary carries
+    both numbers and the README quotes both; these are the relations that
+    have to hold between them, whatever the archive grows to.
+    """
+    summary, rows = _results()
+    lad = summary["ladders"]
+    gross = lad["inversions_gross_total"]
+    pairs = lad["inversion_strike_pairs"]
+    assert 0 < pairs <= gross
+    assert 0 <= lad["net_inversion_strike_pairs"] <= lad["inversions_net_total"]
+    assert lad["net_inversion_strike_pairs"] <= pairs
+    assert 0 <= lad["inversion_strike_pairs_seen_once"] <= pairs
+    assert lad["net_inversion_events"] <= lad["inversion_events"]
+    assert lad["inversion_events"] <= pairs
+    assert lad["readings_per_inverted_strike_pair"] == \
+        pytest.approx(gross / pairs, abs=5e-3)
+    top = lad["most_repeated_strike_pair"]
+    assert top is not None and 1 <= top["readings"] <= gross
+    # A pair seen once cannot also be the most repeated one unless every
+    # pair was seen once.
+    if top["readings"] > 1:
+        assert lad["inversion_strike_pairs_seen_once"] < pairs
+
+
 def test_the_worst_case_in_the_summary_is_the_worst_case_in_the_rows():
     summary, rows = _results()
     lad = summary["ladders"]

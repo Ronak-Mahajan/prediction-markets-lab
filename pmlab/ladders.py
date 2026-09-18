@@ -363,6 +363,17 @@ def build_ladders(rows: list[dict], min_rungs: int = 3) -> list[Ladder]:
 # Screens
 # --------------------------------------------------------------------------
 
+def strike_pair_key(i: "Inversion") -> str:
+    """``event|lower strike|upper strike``: the identity of a mispricing.
+
+    Two readings of the same inverted pair in consecutive snapshots are one
+    mispricing observed twice, not two findings, and this is the key that
+    says so. The thresholds rather than the tickers, because the threshold
+    is what the claim is about.
+    """
+    return f"{i.event_ticker}|{i.lower_threshold!r}|{i.upper_threshold!r}"
+
+
 def ladder_inversions(lad: Ladder, series_ticker: str | None = None
                       ) -> list[Inversion]:
     """Beyond-spread monotonicity violations on one ladder, gross and net."""
@@ -444,6 +455,16 @@ class LadderReport:
     #: noise in the quotes, a count concentrated in a handful of long-dated
     #: series is a statement about which ladders nobody is minding.
     inversions_by_event: dict[str, int] = field(default_factory=dict)
+    #: ``event|lower strike|upper strike`` for every inversion counted, one
+    #: entry per reading. The archive re-screens the same ladders every few
+    #: hours, so a mispricing nobody corrects is counted once per snapshot it
+    #: survives. Unioned across the archive this is how many *distinct*
+    #: strike pairs were ever inverted, which is the number a claim about
+    #: findings has to use; ``inversions_gross`` is how many times they were
+    #: seen.
+    inversion_pairs: list[str] = field(default_factory=list)
+    #: The same key for the inversions that survived the fee.
+    net_inversion_pairs: list[str] = field(default_factory=list)
 
     def as_dict(self) -> dict:
         def inv(i: Inversion | None) -> dict | None:
@@ -479,6 +500,8 @@ class LadderReport:
             "worst_negative_mass": nm(self.worst_negative_mass),
             "by_family": dict(sorted(self.by_family.items())),
             "inversions_by_event": dict(sorted(self.inversions_by_event.items())),
+            "inversion_pairs": list(self.inversion_pairs),
+            "net_inversion_pairs": list(self.net_inversion_pairs),
         }
 
 
@@ -498,11 +521,13 @@ def screen_ladders(rows: list[dict], min_rungs: int = 3) -> LadderReport:
             rep.inversions_gross += 1
             rep.inversions_by_event[i.event_ticker] = (
                 rep.inversions_by_event.get(i.event_ticker, 0) + 1)
+            rep.inversion_pairs.append(strike_pair_key(i))
             if rep.worst_inversion is None or i.gross_edge > rep.worst_inversion.gross_edge:
                 rep.worst_inversion = i
             if survives(i.net_edge):
                 rep.inversions_net += 1
                 rep.net_inversions.append(i.event_ticker)
+                rep.net_inversion_pairs.append(strike_pair_key(i))
                 if (rep.worst_net_inversion is None
                         or i.net_edge > rep.worst_net_inversion.net_edge):
                     rep.worst_net_inversion = i
