@@ -32,7 +32,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from .fees import kalshi_taker_fee
+from .fees import edge as fee_edge, kalshi_taker_fee, survives
 
 
 @dataclass(frozen=True)
@@ -104,16 +104,17 @@ def screen_buckets(rows: list[dict], min_buckets: int = 3) -> BucketReport:
         series = next((m.get("series_ticker") for m in markets
                        if m.get("series_ticker")), None)
         fee = sum(kalshi_taker_fee(float(a), 1, series) for a in asks)  # type: ignore[arg-type]
-        if s >= 1.0:
+        gross = fee_edge(1.0 - s)
+        if gross <= 0:
             continue
         cand = BucketCandidate(
             event_ticker=ev, series_ticker=series,
             title=str(next((m.get("event_title") or m.get("title") or ""
                             for m in markets), "")),
             buckets=len(asks), ask_sum=s, fee=fee,
-            gross_edge=1.0 - s, net_edge=1.0 - s - fee)
+            gross_edge=gross, net_edge=fee_edge(gross - fee))
         rep.gross += 1
-        if cand.net_edge > 0:
+        if survives(cand.net_edge):
             rep.net += 1
         if rep.worst is None or cand.gross_edge > rep.worst.gross_edge:
             rep.worst = cand

@@ -268,6 +268,55 @@ def test_a_wide_inversion_does_survive_the_fee():
     assert rep.worst_net_inversion.net_edge == pytest.approx(0.08 - 0.02)
 
 
+def test_a_break_even_inversion_does_not_survive_the_fee():
+    """2c of gross against 2c of fee is zero edge, not a surviving one.
+
+    This is the case the archive actually produced (KXMC-GTA6, 17 September,
+    ask 0.90 under bid 0.92, one cent of fee on each leg). In binary floating
+    point ``0.92 - 0.90`` is 0.020000000000000018, so subtracting an exact
+    two cents leaves 1.7e-17 and a plain ``> 0`` called it a survivor. Every
+    quote here sits on a tenth-of-a-cent grid, so the comparison is made on
+    that grid instead.
+    """
+    lad = ladders.Ladder(event_ticker="KXTEST-1", series_ticker="KXTEST",
+                         unit="scalar", source="title", shape="Above N")
+    lad.rungs = [ladders.Rung("KXTEST-1-85", 85.0, 0.88, 0.90),
+                 ladders.Rung("KXTEST-1-90", 90.0, 0.92, 0.94)]
+    (inv,) = ladders.ladder_inversions(lad)
+    assert inv.gross_edge == pytest.approx(0.02)
+    assert inv.fee == pytest.approx(0.02)
+    assert inv.net_edge == 0.0
+    assert fees.survives(inv.net_edge) is False
+
+    rep = ladders.screen_ladders(
+        [kmarket("KXTEST-1-85", "KXTEST-1", 0.88, 0.90, sub_title="Above 85"),
+         kmarket("KXTEST-1-90", "KXTEST-1", 0.92, 0.94, sub_title="Above 90"),
+         kmarket("KXTEST-1-95", "KXTEST-1", 0.10, 0.12, sub_title="Above 95")])
+    assert rep.inversions_gross == 1
+    assert rep.inversions_net == 0
+
+
+def test_an_edge_is_compared_on_the_quoting_grid_not_in_float_noise():
+    assert fees.edge(0.92 - 0.90) == 0.02
+    assert fees.edge(0.92 - 0.90) - fees.kalshi_taker_fee(0.90) \
+        - fees.kalshi_taker_fee(0.92) == 0.0
+    # A tenth of a cent is six orders of magnitude above the snap and must
+    # survive it untouched: the screen must not round a real edge away.
+    assert fees.survives(0.001) is True
+    assert fees.survives(1.7e-17) is False
+    assert fees.survives(-0.001) is False
+
+
+def test_equal_mids_are_not_negative_probability_mass():
+    """The same artefact on the mids: 0.905 - 0.905 must be zero mass."""
+    lad = ladders.Ladder(event_ticker="KXTEST-2", series_ticker=None,
+                         unit="scalar", source="title", shape="Above N")
+    lad.rungs = [ladders.Rung("a", 1.0, 0.89, 0.92),
+                 ladders.Rung("b", 2.0, 0.90, 0.91)]
+    assert [r.mid for r in lad.rungs] == [0.905, 0.905]
+    assert ladders.ladder_negative_mass(lad) == []
+
+
 def test_structured_strike_fields_are_preferred_over_titles():
     """The strike comes from the venue even when no title regex matches."""
     ev = "KXSTRUCT-26"
