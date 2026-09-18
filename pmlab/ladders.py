@@ -59,7 +59,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-from .fees import kalshi_taker_fee
+from .fees import edge as fee_edge, kalshi_taker_fee, survives
 
 # --------------------------------------------------------------------------
 # Title families (recorder v1)
@@ -369,7 +369,7 @@ def ladder_inversions(lad: Ladder, series_ticker: str | None = None
     st = series_ticker if series_ticker is not None else lad.series_ticker
     out: list[Inversion] = []
     for lo, hi in zip(lad.rungs, lad.rungs[1:]):
-        gross = hi.bid - lo.ask
+        gross = fee_edge(hi.bid - lo.ask)
         if gross <= 0:
             continue
         fee = kalshi_taker_fee(lo.ask, 1, st) + kalshi_taker_fee(hi.bid, 1, st)
@@ -378,7 +378,8 @@ def ladder_inversions(lad: Ladder, series_ticker: str | None = None
                              lower_threshold=lo.threshold,
                              upper_threshold=hi.threshold,
                              lower_ask=lo.ask, upper_bid=hi.bid,
-                             gross_edge=gross, net_edge=gross - fee, fee=fee))
+                             gross_edge=gross, net_edge=fee_edge(gross - fee),
+                             fee=fee))
     return out
 
 
@@ -388,7 +389,7 @@ def ladder_negative_mass(lad: Ladder, series_ticker: str | None = None
     st = series_ticker if series_ticker is not None else lad.series_ticker
     out: list[NegativeMass] = []
     for lo, hi in zip(lad.rungs, lad.rungs[1:]):
-        mass = lo.mid - hi.mid
+        mass = fee_edge(lo.mid - hi.mid)
         if mass >= 0:
             continue
         fee = kalshi_taker_fee(lo.mid, 1, st) + kalshi_taker_fee(hi.mid, 1, st)
@@ -499,7 +500,7 @@ def screen_ladders(rows: list[dict], min_rungs: int = 3) -> LadderReport:
                 rep.inversions_by_event.get(i.event_ticker, 0) + 1)
             if rep.worst_inversion is None or i.gross_edge > rep.worst_inversion.gross_edge:
                 rep.worst_inversion = i
-            if i.net_edge > 0:
+            if survives(i.net_edge):
                 rep.inversions_net += 1
                 rep.net_inversions.append(i.event_ticker)
                 if (rep.worst_net_inversion is None
@@ -511,6 +512,6 @@ def screen_ladders(rows: list[dict], min_rungs: int = 3) -> LadderReport:
             if (rep.worst_negative_mass is None
                     or n.mass < rep.worst_negative_mass.mass):
                 rep.worst_negative_mass = n
-            if -n.mass > n.fee:
+            if survives(-n.mass - n.fee):
                 rep.negative_mass_net += 1
     return rep

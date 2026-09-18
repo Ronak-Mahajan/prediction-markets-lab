@@ -155,6 +155,28 @@ KALSHI_REDUCED_TAKER_MULTIPLIER: dict[str, Decimal] = {
 
 _CENT = Decimal("0.01")
 
+#: Decimal places an edge is snapped to before it is compared with a fee.
+#:
+#: Every quote in this archive sits on a grid no finer than a tenth of a
+#: cent and every fee above is an exact number of cents, so an edge is a
+#: multiple of 0.001 dollars in exact arithmetic. Binary floating point
+#: disagrees: ``0.92 - 0.90`` is ``0.020000000000000018``, which is 1.7e-17
+#: *more* than the two cents the two legs cost, and an exactly break-even
+#: inversion was counted as one that survived the fee. Nine decimals is six
+#: orders of magnitude finer than the grid and eight coarser than the noise,
+#: so snapping there deletes the artefact and moves no real number.
+EDGE_DIGITS = 9
+
+
+def edge(x: float) -> float:
+    """A dollar edge, snapped back onto the grid the venue quotes on."""
+    return round(x, EDGE_DIGITS)
+
+
+def survives(net_edge: float) -> bool:
+    """Is this edge positive on the quoting grid, rather than in float noise?"""
+    return edge(net_edge) > 0.0
+
 
 def ceil_to_cent(x: Decimal) -> Decimal:
     """Round a dollar amount UP to the next whole cent, as the venue does."""
@@ -162,8 +184,8 @@ def ceil_to_cent(x: Decimal) -> Decimal:
 
 
 def kalshi_taker_multiplier(series_ticker: str | None = None) -> Decimal:
-    """The multiplier for one series: the reduced one if the (empty) table
-    lists it, otherwise the general one."""
+    """The multiplier for one series: the reduced one if the table lists it,
+    otherwise the general one."""
     if series_ticker:
         m = KALSHI_REDUCED_TAKER_MULTIPLIER.get(series_ticker.upper())
         if m is not None:
