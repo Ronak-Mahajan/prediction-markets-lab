@@ -19,13 +19,20 @@ What is pinned here, and what is deliberately not:
   ``screen.py`` used to charge the unrounded ``0.07 * p * (1 - p)``
   (0.0007 on that contract, 14x too little), so "survives the fee model"
   was permissive by more than an order of magnitude at the tails.
-* **Kalshi reduced multipliers.** The published schedule lists a lower
-  multiplier for some series. The table below is deliberately EMPTY: the
-  fee-schedule PDF returned HTTP 429 to this machine and nobody here has
-  read it. An empty table means every series is charged the general
-  multiplier, which over-charges the reduced series and therefore
-  under-reports net violations. That direction is the safe one, and the
-  TODO is the owner's to close.
+* **Kalshi reduced multipliers.** Some series are priced below the general
+  rate. The table below is filled from Kalshi's own public, unauthenticated
+  ``GET /trade-api/v2/series/fee_changes?show_historical=true``, captured
+  verbatim in ``docs/kalshi-series-fee-changes-2026-09-16.json``. That feed
+  reports a multiplier *relative* to the general rate: 1 is the general
+  0.07, 0.5 is half, 0 is no fee at all. Kalshi's own announcement of the
+  S&P and Nasdaq change pins the arithmetic -- 1.75c to 0.875c per contract
+  at the midpoint, which is 0.07 * 0.25 halved to 0.035 * 0.25 -- so what is
+  stored here is 0.07 times the relative multiplier. Only rows whose
+  ``fee_type`` is one of the quadratic (taker) kinds are used;
+  ``margin_market_maker_program_fees`` rows describe a different charge, so
+  a series known only through one of those stays on the general rate.
+  The fee-schedule PDF is still unread from this machine: it sits behind a
+  bot checkpoint and answers HTTP 429.
 * **Polymarket** charges no taker fee on the central limit order book by
   default. That default is a real fact about the venue, not a shortcut,
   but it has been changed per-market before, so the constant is a lookup
@@ -55,9 +62,15 @@ from decimal import ROUND_CEILING, Decimal
 FEES_AS_OF = date(2026, 9, 11)
 
 SOURCES: dict[str, str] = {
-    "kalshi": "Kalshi fee schedule (kalshi.com/docs/kalshi-fee-schedule.pdf); "
-              "the general taker formula is quoted in the public API docs. "
-              "The PDF itself has NOT been read on this machine (HTTP 429).",
+    "kalshi": "Kalshi public API, GET /trade-api/v2/series/fee_changes"
+              "?show_historical=true on external-api.kalshi.com, read "
+              "2026-09-16 and captured verbatim in "
+              "docs/kalshi-series-fee-changes-2026-09-16.json. The general "
+              "taker formula is quoted in the public API docs; the relative "
+              "multiplier's arithmetic is pinned by Kalshi's own fee-halving "
+              "announcement (news.kalshi.com/p/were-halving-the-fees, 1.75c "
+              "-> 0.875c per contract at the midpoint). The fee-schedule PDF "
+              "itself has NOT been read on this machine (HTTP 429).",
     "polymarket": "Polymarket docs: CLOB trading currently charges no taker "
                   "or maker fee; the protocol supports per-market fees.",
     "predictit": "PredictIt FAQ: 10% of profit on a winning position, 5% of "
@@ -76,15 +89,69 @@ KALSHI_TAKER_MULTIPLIER = Decimal("0.07")
 #: constant so a future dated schedule has somewhere to land.
 KALSHI_MAKER_MULTIPLIER = Decimal("0.00")
 
-# TODO(owner): the published fee schedule lists a REDUCED taker multiplier
-# for a named set of series (the index/financial families are the usual
-# candidates). Capture the dated PDF into docs/ and fill this table with
-# {series_ticker: multiplier} read off it. Do not guess the list or the
-# number from memory: an over-stated multiplier hides real net violations
-# and an under-stated one invents them. Until it is filled, every series is
-# charged KALSHI_TAKER_MULTIPLIER, which over-charges the reduced series and
-# therefore under-reports net violations -- the conservative direction.
-KALSHI_REDUCED_TAKER_MULTIPLIER: dict[str, Decimal] = {}
+#: Absolute taker multipliers for the series Kalshi prices below the general
+#: rate, i.e. 0.07 times the relative multiplier its fee_changes feed reports.
+#: Generated from the captured response, never typed: the test
+#: ``test_reduced_multiplier_table_matches_the_captured_feed`` re-derives this
+#: dict from docs/kalshi-series-fee-changes-2026-09-16.json and fails if the
+#: two disagree.
+#:
+#: This table is flat in time while the feed is dated. Every entry that
+#: touches the committed archive took effect before the window opened -- the
+#: latest relevant one is KXGDPYEAR on 2026-07-28, and the window starts
+#: 2026-08-23 -- so a flat lookup is exact for this replay. A series whose
+#: rate moved mid-window would need a dated lookup, and none does.
+KALSHI_REDUCED_TAKER_MULTIPLIER: dict[str, Decimal] = {
+    "KXBCHPERP": Decimal("0"),          # 2026-06-03, x0
+    "KXBTCPERP": Decimal("0"),          # 2026-06-03, x0
+    "KXBTCY": Decimal("0"),             # 2026-02-26, x0
+    "KXCITRINI": Decimal("0"),          # 2026-02-26, x0
+    "KXDOED": Decimal("0"),             # 2025-10-21, x0
+    "KXDOGEPERP": Decimal("0"),         # 2026-06-03, x0
+    "KXDOTPERP": Decimal("0"),          # 2026-06-03, x0
+    "KXELECTIRAN": Decimal("0"),        # 2026-03-03, x0
+    "KXETHPERP": Decimal("0"),          # 2026-06-03, x0
+    "KXETHY": Decimal("0"),             # 2026-02-26, x0
+    "KXEXPAND": Decimal("0"),           # 2025-10-21, x0
+    "KXGAMBLINGREPEAL": Decimal("0"),   # 2025-10-21, x0
+    "KXGDPYEAR": Decimal("0"),          # 2026-07-28, x0
+    "KXGREENLAND": Decimal("0"),        # 2025-10-21, x0
+    "KXHBARPERP": Decimal("0"),         # 2026-06-03, x0
+    "KXHYPEPERP": Decimal("0"),         # 2026-06-08, x0
+    "KXIRANDEMOCRACY": Decimal("0"),    # 2026-03-03, x0
+    "KXKSHIBPERP": Decimal("0"),        # 2026-06-03, x0
+    "KXLAYOFFSYINFO": Decimal("0"),     # 2026-02-26, x0
+    "KXLINKPERP": Decimal("0"),         # 2026-06-03, x0
+    "KXLTCPERP": Decimal("0"),          # 2026-06-03, x0
+    "KXMLBEXTRAS": Decimal("0.035"),    # 2026-08-07, x0.5
+    "KXMLBF3": Decimal("0.035"),        # 2026-08-07, x0.5
+    "KXMLBF5": Decimal("0.035"),        # 2026-08-07, x0.5
+    "KXMLBF5SPREAD": Decimal("0.035"),  # 2026-08-07, x0.5
+    "KXMLBF5TOTAL": Decimal("0.035"),   # 2026-08-07, x0.5
+    "KXMLBF7": Decimal("0.035"),        # 2026-08-07, x0.5
+    "KXMLBGAME": Decimal("0.035"),      # 2026-08-07, x0.5
+    "KXMLBHIT": Decimal("0.035"),       # 2026-08-07, x0.5
+    "KXMLBHR": Decimal("0.035"),        # 2026-08-07, x0.5
+    "KXMLBHRR": Decimal("0.035"),       # 2026-08-07, x0.5
+    "KXMLBKS": Decimal("0.035"),        # 2026-08-07, x0.5
+    "KXMLBOUTS": Decimal("0.035"),      # 2026-08-07, x0.5
+    "KXMLBRBI": Decimal("0.035"),       # 2026-08-07, x0.5
+    "KXMLBRFI": Decimal("0.035"),       # 2026-08-07, x0.5
+    "KXMLBSB": Decimal("0.035"),        # 2026-08-07, x0.5
+    "KXMLBSPREAD": Decimal("0.035"),    # 2026-08-07, x0.5
+    "KXMLBTB": Decimal("0.035"),        # 2026-08-07, x0.5
+    "KXMLBTEAMTOTAL": Decimal("0.035"), # 2026-08-07, x0.5
+    "KXMLBTOTAL": Decimal("0.035"),     # 2026-08-07, x0.5
+    "KXNEARPERP": Decimal("0"),         # 2026-06-24, x0
+    "KXNEXTIRANLEADER": Decimal("0"),   # 2026-03-03, x0
+    "KXPAHLAVIHEAD": Decimal("0"),      # 2026-03-03, x0
+    "KXSOLPERP": Decimal("0"),          # 2026-06-03, x0
+    "KXSUIPERP": Decimal("0"),          # 2026-06-03, x0
+    "KXTRUMPOUT": Decimal("0"),         # 2025-10-21, x0
+    "KXXLMPERP": Decimal("0"),          # 2026-06-03, x0
+    "KXXRPPERP": Decimal("0"),          # 2026-06-03, x0
+    "KXZECPERP": Decimal("0"),          # 2026-06-24, x0
+}
 
 _CENT = Decimal("0.01")
 
@@ -235,9 +302,15 @@ FEE_MODELS: dict[str, VenueFees] = {
         note="taker fee = ceil to the cent of 0.07 * contracts * P * (1-P), "
              "per order; minimum one cent per order with any risk",
         source=SOURCES["kalshi"],
-        caveats=("the reduced-multiplier series table is EMPTY (the fee "
-                 "schedule PDF has not been read here), so every series is "
-                 "charged the general 0.07 multiplier",),
+        caveats=("the per-series multipliers come from Kalshi's public "
+                 "fee_changes feed rather than the fee-schedule PDF, which "
+                 "is still unreadable from here; only quadratic (taker) rows "
+                 "are used, so a series known only through a "
+                 "market-maker-program row stays on the general 0.07",
+                 "the table holds the rate in force on 2026-09-16 and is "
+                 "flat in time; every series it changes for this archive "
+                 "changed before the window opened, so the replay is exact, "
+                 "but a mid-window change would need a dated lookup",),
     ),
     "polymarket": VenueFees(
         venue="polymarket",
