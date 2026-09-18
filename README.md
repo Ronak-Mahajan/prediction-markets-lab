@@ -8,7 +8,8 @@ and let weeks of data draw the conclusions.
 The repo records its own data with no server anywhere: a GitHub Actions
 cron snapshots four venues' public APIs and commits the result. The cron
 is scheduled every two hours; across every interval in the archive
-the realised cadence is a median 3.3 h with a maximum gap of 12.6 h
+the realised cadence is a median 3.5 <!-- results:archive.median_gap_hours -->
+h with a maximum gap of 12.6 <!-- results:archive.max_gap_hours --> h
 (2026-08-27 and 08-28 have two snapshots each), because hosted schedulers
 delay runs under load. Every run succeeded, so the gaps are scheduler
 delay, not failures. The history accumulates from the day the repo went
@@ -203,7 +204,7 @@ cents, and never less than one), and they were not spread across the
 catalog either — the archive's
 462 <!-- results:ladders.inversions_gross_total --> gross inversions fall
 in 96 <!-- results:ladders.inversion_events --> events, against the 7,309
-the newest snapshot alone carries, and three fifths of them are in the
+the newest snapshot alone carries, and more than half of them are in the
 long-dated `KXFEDFUNDSYEAR-3x` and `KXUSCPIYEAR` ladders that settle years
 out and that nobody is minding.
 
@@ -316,14 +317,29 @@ Over 26.7 <!-- results:archive.days_spanned --> days and
 pairs, 80,228 <!-- results:predictit_complement.pairs_total --> PredictIt
 pairs, 150,513 <!-- results:polymarket_complement.pairs_total -->
 Polymarket pairs, 63,066 <!-- results:buckets.screened_total --> screened
-bucket-sum events — honest fee accounting erases every coherence violation
-the screens can find except
+bucket-sum events — nothing the screens find survives its own caveat, and
+each screen is disqualified by a different one.
+
+On the Kalshi ladders, where a taker fee is actually charged, fee
+accounting is what does the work: it takes
+462 <!-- results:ladders.inversions_gross_total --> gross readings down to
+11 <!-- results:ladders.inversions_net_total -->, which are
 6 <!-- results:ladders.net_inversion_strike_pairs --> strike pairs in
-3 <!-- results:ladders.net_inversion_events --> Kalshi events, seen
-11 <!-- results:ladders.inversions_net_total --> times between 11 and 17
-September, the widest
+3 <!-- results:ladders.net_inversion_events --> events, seen between 11 and
+17 September, the widest
 15.0 <!-- results:ladders.worst_net_inversion.net_edge_cents --> cents net
-of fee on a barely-marked USD/BRL ladder. Every one of them appeared the
+of fee on a barely-marked USD/BRL ladder. PredictIt gives
+0 <!-- results:predictit_complement.gross_total --> complement violations.
+Polymarket gives 43 <!-- results:polymarket_complement.gross_total -->, and
+fees erase none of them, because the CLOB charges none: what disqualifies
+them is that all
+43 <!-- results:polymarket_complement.gross_string_sorted_era --> sit in the
+string-sorted era, a bug in this repo's own recorder rather than a fact
+about the venue. The bucket-sum candidates are not arbitrage at any fee:
+the open-universe trap named above disqualifies them before a fee model
+is reached.
+
+The surviving ladder pairs appeared the
 moment the recorder stopped truncating the catalog: the recorder-v1 slice,
 125 <!-- results:ladders.by_recorder.schema1.snapshots --> snapshots and
 861,844 <!-- results:ladders.by_recorder.schema1.adjacent_pairs --> adjacent
@@ -484,12 +500,15 @@ are in, not before.
 
 Kalshi lists range markets on equity indexes (KXINXY, KXINXDIRY and the
 daily KXNASDAQ100U family are in the archive). Recorder v1 captured no BTC
-range series at all — across all 117 v1 snapshots the only BTC ticker is
+range series at all — across all
+125 <!-- results:archive.schema1_snapshots --> v1 snapshots the only BTC ticker is
 `KXTREASBUYBTC`, a custom-strike market, because the range series sat
 beyond its 2,000-event cap. Lifting the cap fixed that: the newest v2
 snapshot carries 21 series with BTC in the ticker, 13 of them with a
-numeric strike type, including `KXBTC` (180 markets, mostly `between`
-ranges) and `KXBTCD` (180 threshold markets). This phase now has both
+numeric strike type, including `KXBTC`, quoted mostly as `between`
+ranges, and `KXBTCD`, quoted as thresholds. Both are daily series whose
+rung count turns over with every expiry, so no count of them is quoted
+here. This phase now has both
 legs of its comparison in the archive.
 
 A calibrated options surface implies
