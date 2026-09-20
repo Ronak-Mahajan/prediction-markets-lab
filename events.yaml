@@ -1,4 +1,4 @@
-# Cross-venue event map for pmlab.basis  --  HAND-CURATED, NOT GENERATED.
+# Cross-venue event map for pmlab.basis. HAND-CURATED, NOT GENERATED.
 #
 # THE CURATION RULE
 # -----------------
@@ -22,9 +22,9 @@
 # against margin-of-victory ladders. A wrong pair does not produce a small
 # error, it produces a basis that is entirely an artefact.
 #
-# verified: false  ->  carried as a to-do, counted in results, NEVER priced.
-# verified: true   ->  requires checked_by and checked_on; the loader
-#                      rejects a pair claiming verification with no date.
+# "verified: false" carries the pair as a to-do: counted in results, never
+# priced. "verified: true" requires checked_by and checked_on; the loader
+# rejects a pair claiming verification with no date.
 #
 # Every pair below is a SKELETON EXAMPLE and is deliberately unverified.
 # Each one names the specific thing a person has to go and check. Manifold
@@ -105,11 +105,11 @@ pairs:
     deadline: "2026-10-10T00:00:00Z"
     verified: false
     note: >-
-      Both keys are now real and both are in the archive: the Kalshi leg
-      used to read KXNOBELPEACE-27-EMUS, which was a guess at the suffix
-      and appears in no recorded snapshot. The 2026-09-11T20:03Z snapshot
-      lists twenty-one KXNOBELPEACE markets and Elon Musk is
-      KXNOBELPEACE-26-ELO, in the -26- series, not -27-. What is still
+      Both keys are real and both are in the archive: the 2026-09-11T20:03Z
+      snapshot lists twenty-one KXNOBELPEACE markets and Elon Musk is
+      KXNOBELPEACE-26-ELO, in the -26- series. Every Kalshi ticker in this
+      file is read out of a recorded snapshot rather than constructed from
+      the series name, because the suffix is not guessable. What is still
       unchecked is the deadline, and it is not a formality: the Kalshi
       market closes 2026-12-31T23:59Z while Polymarket 637007 ends
       2026-10-10, the announcement date. Read both rules pages and decide
@@ -126,16 +126,15 @@ pairs:
         key: "637007"
         side: "yes"
 
-# DROPPED, and recorded here rather than deleted: recession-2027-nber.
-# Kalshi KXRECSSNBER-27 settles on the NBER business cycle dating
-# committee's announcement, which can arrive more than a year after the
-# fact. Searching every recorded Polymarket and PredictIt slice on
-# 2026-09-11 for "recession" or "nber" returns nothing that settles on that
-# announcement, so the pair carried a literal
-# "TODO-find-the-nber-market-id" as its second leg. A placeholder wearing a
-# market key is worse than a missing pair: it counts in "N pairs" and can
-# never be verified. The loader now refuses any key containing TODO/TBD/
-# FIXME, so if it comes back it comes back as a rejected pair with a
-# reason. To restore it, find a market that settles on the SAME NBER
-# announcement -- not on a two-quarter GDP rule, which would make the
-# basis a difference in the definition of "recession" rather than in price.
+# NOT LISTED, and the reason kept here: recession-2027-nber. Kalshi
+# KXRECSSNBER-27 settles on the NBER business cycle dating committee's
+# announcement, which can arrive more than a year after the fact.
+# Searching every recorded Polymarket and PredictIt slice on 2026-09-11
+# for "recession" or "nber" returns nothing that settles on that
+# announcement, so there is no second leg to pair it with. A placeholder
+# wearing a market key would be worse than a missing pair: it counts in
+# "N pairs" and can never be verified, so the loader refuses any key
+# containing TODO/TBD/FIXME. To add this pair, find a market that settles
+# on the SAME NBER announcement, not on a two-quarter GDP rule, which
+# would make the basis a difference in the definition of "recession"
+# rather than in price.

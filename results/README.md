@@ -29,9 +29,9 @@ Every inversion that survived the fee is in 3 event(s): `KXARTISTSTREAMSY-ODDMOB
 | negative implied mass at mids, gross (total) | 58,015 |
 | ... whose magnitude exceeds two legs of fee | 23,773 |
 
-Worst gross inversion: `KXUSDBRLAW-26SEP18` on 2026-09-17T00:37:14Z, strike 5.117 ask 0.43 against strike 5.119 bid 0.62 -- 19.0c gross, 4.0c of fee on the two legs, 15.0c net.
+Worst gross inversion: `KXUSDBRLAW-26SEP18` on 2026-09-17T00:37:14Z, strike 5.117 ask 0.43 against strike 5.119 bid 0.62: 19.0c gross, 4.0c of fee on the two legs, 15.0c net.
 
-Recorder v1 stopped at 2,000 events (about 14,000 markets, mostly the two midterm ladder families); recorder v2 sweeps the whole open catalog (about 56,000). Pooling the two counts a different experiment twice, so they are split:
+Recorder v1 covers the first 2,000 events (about 14,000 markets, mostly the two midterm ladder families); recorder v2 sweeps the whole open catalog (about 56,000). Pooling the two counts a different experiment twice, so they are split:
 
 | recorder | snapshots | adjacent pairs | inversions gross | net of fee |
 |---|---|---|---|---|
@@ -53,7 +53,7 @@ Those 462 inversions are readings, not findings: every ladder is screened again 
 | `KXMDT-26DECCARDGROW` | 12 |
 | `KXUSDBRLAW-26SEP18` | 11 |
 
-The inversion screen is at the touch and is executable by construction: sell the higher strike at its bid, buy the lower at its ask. The negative-mass screen is at mids and is **not** a trade -- it says where the quoted curve is marked impossibly, which is a wider and softer statement. The two must not be read as the same number.
+The inversion screen is at the touch and is executable by construction: sell the higher strike at its bid, buy the lower at its ask. The negative-mass screen is at mids and is **not** a trade: it says where the quoted curve is marked impossibly, which is a wider and softer statement. The two must not be read as the same number.
 
 ## Complement
 
@@ -65,9 +65,9 @@ The inversion screen is at the touch and is executable by construction: sell the
 
 Kalshi is not screened on purpose: `no_ask == 1 - yes_bid` held on 3,333,182 of 3,333,182 two-sided books across the whole archive (0 deviations), so YES ask plus NO ask is 1 plus the spread by construction and the screen cannot fire. It is asserted as an invariant: a single deviation fails this replay.
 
-Screened on the venue's quoted outcome-price pair, not on two asks: the complementary token's book is not in this archive (a recorder gap). A violation is an incoherent quote, not a demonstrated trade.
+Screened on the venue's quoted outcome-price pair, not on two asks: the recorder stores one token's top of book, so the complementary token's book is not in this archive. A violation is an incoherent quote, not a demonstrated trade.
 
-All 43 Polymarket violations fall in the 68 snapshots of the string-sorted era (2026-08-23 to 2026-09-01T16:44Z), when the venue served `order=liquidity` sorted as text and the recorder kept the result: thin, often already-expired rows. The 95 snapshots of the clean `liquidityNum` era carry 0. That is a statement about the recorder, not about the venue's quotes.
+All 43 Polymarket violations fall in the 68 snapshots of the string-sorted era (2026-08-23 to 2026-09-01T16:44Z), when the venue served `order=liquidity` sorted as text, so those snapshots hold the thin and often already-expired rows a text sort puts at the top. The 95 snapshots of the `liquidityNum` era carry 0. The violations therefore describe that slice of the archive, not the venue's quotes.
 
 ## Bucket sums
 
@@ -266,7 +266,7 @@ Manifold quotes a single probability rather than a book, so its bid and ask colu
 | Sports | 751 | 11 | 0.1338 | 0.465 | -0.4013 | 0.379 |
 | unknown | 3,456 | 49 | 0.1699 | 0.320 | -0.5030 | 0.354 |
 
-Category is recorded on Kalshi only; the recorder captures no category for Polymarket or Manifold, so every row from those venues is `unknown`. That is a recorder gap, not a market fact.
+Category is recorded on Kalshi only; the recorder captures no category for Polymarket or Manifold, so every row from those venues is `unknown`. That is a property of this archive, not of the markets.
 
 ### By liquidity bucket
 
@@ -288,7 +288,7 @@ Each venue's own liquidity measure, so these bands compare markets within a venu
 | numeric | 769 | 17 | 0.1804 | 0.278 | -0.5272 | 0.382 |
 | string_sorted | 2,414 | 11 | 0.1641 | 0.344 | -0.4895 | 0.323 |
 
-The string-sorted era is the nine days the venue served `order=liquidity` as text and the recorder kept the result.
+The string-sorted era is the nine days the venue served `order=liquidity` as text.
 
 ### Inferred outcomes (excluded from every number above)
 
@@ -328,7 +328,7 @@ Constants read 2026-09-11.
 | polymarket | no taker fee on the CLOB; per-market overrides supported |
 | predictit | 10% of profit on the winning leg, plus 5% on withdrawal |
 
-- **kalshi:** the per-series multipliers come from Kalshi's public fee_changes feed rather than the fee-schedule PDF, which is still unreadable from here; only quadratic (taker) rows are used, so a series known only through a market-maker-program row stays on the general 0.07
+- **kalshi:** the per-series multipliers come from Kalshi's public fee_changes feed rather than the fee-schedule PDF, which answers HTTP 429 from here; only quadratic (taker) rows are used, so a series known only through a market-maker-program row stays on the general 0.07
 - **kalshi:** the table holds the rate in force on 2026-09-16 and is flat in time; every series it changes for this archive changed before the window opened, so the replay is exact, but a mid-window change would need a dated lookup
 - **polymarket:** with a zero fee the net numbers equal the gross ones by construction; they are reported separately anyway so the day a fee appears the table changes on its own
 - **predictit:** the profit fee is charged per winning position, so a complement pair is quoted at its worst case

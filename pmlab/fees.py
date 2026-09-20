@@ -69,8 +69,9 @@ SOURCES: dict[str, str] = {
               "taker formula is quoted in the public API docs; the relative "
               "multiplier's arithmetic is pinned by Kalshi's own fee-halving "
               "announcement (news.kalshi.com/p/were-halving-the-fees, 1.75c "
-              "-> 0.875c per contract at the midpoint). The fee-schedule PDF "
-              "itself has NOT been read on this machine (HTTP 429).",
+              "to 0.875c per contract at the midpoint). The rates come from "
+              "that feed because the fee-schedule PDF answers HTTP 429 from "
+              "this machine.",
     "polymarket": "Polymarket docs: CLOB trading currently charges no taker "
                   "or maker fee; the protocol supports per-market fees.",
     "predictit": "PredictIt FAQ: 10% of profit on a winning position, 5% of "
@@ -326,7 +327,7 @@ FEE_MODELS: dict[str, VenueFees] = {
         source=SOURCES["kalshi"],
         caveats=("the per-series multipliers come from Kalshi's public "
                  "fee_changes feed rather than the fee-schedule PDF, which "
-                 "is still unreadable from here; only quadratic (taker) rows "
+                 "answers HTTP 429 from here; only quadratic (taker) rows "
                  "are used, so a series known only through a "
                  "market-maker-program row stays on the general 0.07",
                  "the table holds the rate in force on 2026-09-16 and is "

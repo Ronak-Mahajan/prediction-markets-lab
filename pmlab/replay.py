@@ -401,9 +401,10 @@ def summarise(rows: list[dict], paths: list[Path], roots: tuple[str, ...],
                 "net_edge_cents": round(v["net_edge"] * 100, 2),
                 "era": v["era"]}),
             "note": "Screened on the venue's quoted outcome-price pair, not "
-                    "on two asks: the complementary token's book is not in "
-                    "this archive (a recorder gap). A violation is an "
-                    "incoherent quote, not a demonstrated trade.",
+                    "on two asks: the recorder stores one token's top of "
+                    "book, so the complementary token's book is not in this "
+                    "archive. A violation is an incoherent quote, not a "
+                    "demonstrated trade.",
         },
         "predictit_complement": {
             "pairs_median_per_snapshot": _median(ints("predictit_pairs")),
@@ -737,7 +738,8 @@ def render_calibration(w, c: dict) -> None:
             ("By category", "by_category",
              "Category is recorded on Kalshi only; the recorder captures no "
              "category for Polymarket or Manifold, so every row from those "
-             "venues is `unknown`. That is a recorder gap, not a market fact."),
+             "venues is `unknown`. That is a property of this archive, not "
+             "of the markets."),
             ("By liquidity bucket", "by_liquidity",
              "Each venue's own liquidity measure, so these bands compare "
              "markets within a venue and not across venues: "
@@ -745,7 +747,7 @@ def render_calibration(w, c: dict) -> None:
                          in sorted((c.get("liquidity_field") or {}).items()))),
             ("By Polymarket recorder era", "by_era",
              "The string-sorted era is the nine days the venue served "
-             "`order=liquidity` as text and the recorder kept the result."),
+             "`order=liquidity` as text."),
     ):
         table = c.get(key) or {}
         if not table:
@@ -914,16 +916,16 @@ def render_results_readme(s: dict) -> str:
         i = lad["worst_gross_inversion"]
         w(f"Worst gross inversion: `{i['event_ticker']}` on {i['snapshot']}, "
           f"strike {i['lower_threshold']:g} ask {i['lower_ask']:.2f} against "
-          f"strike {i['upper_threshold']:g} bid {i['upper_bid']:.2f} -- "
+          f"strike {i['upper_threshold']:g} bid {i['upper_bid']:.2f}: "
           f"{i['gross_edge_cents']:.1f}c gross, {i['fee_cents']:.1f}c of fee "
           f"on the two legs, {i['net_edge_cents']:.1f}c net.")
         w("")
     br = lad.get("by_recorder") or {}
     if br:
-        w("Recorder v1 stopped at 2,000 events (about 14,000 markets, mostly "
-          "the two midterm ladder families); recorder v2 sweeps the whole open "
-          "catalog (about 56,000). Pooling the two counts a different "
-          "experiment twice, so they are split:")
+        w("Recorder v1 covers the first 2,000 events (about 14,000 markets, "
+          "mostly the two midterm ladder families); recorder v2 sweeps the "
+          "whole open catalog (about 56,000). Pooling the two counts a "
+          "different experiment twice, so they are split:")
         w("")
         w("| recorder | snapshots | adjacent pairs | inversions gross | net of fee |")
         w("|---|---|---|---|---|")
@@ -953,7 +955,7 @@ def render_results_readme(s: dict) -> str:
         w("")
     w("The inversion screen is at the touch and is executable by "
       "construction: sell the higher strike at its bid, buy the lower at its "
-      "ask. The negative-mass screen is at mids and is **not** a trade -- it "
+      "ask. The negative-mass screen is at mids and is **not** a trade: it "
       "says where the quoted curve is marked impossibly, which is a wider and "
       "softer statement. The two must not be read as the same number.")
     w("")
@@ -980,12 +982,12 @@ def render_results_readme(s: dict) -> str:
     w(f"All {_fmt(poly['gross_total'])} Polymarket violations fall in the "
       f"{_fmt(poly['snapshots_string_sorted_era'])} snapshots of the "
       f"string-sorted era (2026-08-23 to 2026-09-01T16:44Z), when the venue "
-      f"served `order=liquidity` sorted as text and the recorder kept the "
-      f"result: thin, often already-expired rows. The "
-      f"{_fmt(poly['snapshots_numeric_era'])} snapshots of the clean "
+      f"served `order=liquidity` sorted as text, so those snapshots hold the "
+      f"thin and often already-expired rows a text sort puts at the top. The "
+      f"{_fmt(poly['snapshots_numeric_era'])} snapshots of the "
       f"`liquidityNum` era carry "
-      f"{_fmt(poly['gross_numeric_era'])}. That is a statement about the "
-      f"recorder, not about the venue's quotes.")
+      f"{_fmt(poly['gross_numeric_era'])}. The violations therefore describe "
+      f"that slice of the archive, not the venue's quotes.")
     w("")
     w("## Bucket sums")
     w("")

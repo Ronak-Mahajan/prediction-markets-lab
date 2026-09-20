@@ -160,7 +160,7 @@
    "net_edge_cents": 8.0,
    "era": "string_sorted"
   },
-  "note": "Screened on the venue's quoted outcome-price pair, not on two asks: the complementary token's book is not in this archive (a recorder gap). A violation is an incoherent quote, not a demonstrated trade."
+  "note": "Screened on the venue's quoted outcome-price pair, not on two asks: the recorder stores one token's top of book, so the complementary token's book is not in this archive. A violation is an incoherent quote, not a demonstrated trade."
  },
  "predictit_complement": {
   "pairs_median_per_snapshot": 498,
@@ -255,9 +255,9 @@
   "models": {
    "kalshi": {
     "note": "taker fee = ceil to the cent of 0.07 * contracts * P * (1-P), per order; minimum one cent per order with any risk",
-    "source": "Kalshi public API, GET /trade-api/v2/series/fee_changes?show_historical=true on external-api.kalshi.com, read 2026-09-16 and captured verbatim in docs/kalshi-series-fee-changes-2026-09-16.json. The general taker formula is quoted in the public API docs; the relative multiplier's arithmetic is pinned by Kalshi's own fee-halving announcement (news.kalshi.com/p/were-halving-the-fees, 1.75c -> 0.875c per contract at the midpoint). The fee-schedule PDF itself has NOT been read on this machine (HTTP 429).",
+    "source": "Kalshi public API, GET /trade-api/v2/series/fee_changes?show_historical=true on external-api.kalshi.com, read 2026-09-16 and captured verbatim in docs/kalshi-series-fee-changes-2026-09-16.json. The general taker formula is quoted in the public API docs; the relative multiplier's arithmetic is pinned by Kalshi's own fee-halving announcement (news.kalshi.com/p/were-halving-the-fees, 1.75c to 0.875c per contract at the midpoint). The rates come from that feed because the fee-schedule PDF answers HTTP 429 from this machine.",
     "caveats": [
-     "the per-series multipliers come from Kalshi's public fee_changes feed rather than the fee-schedule PDF, which is still unreadable from here; only quadratic (taker) rows are used, so a series known only through a market-maker-program row stays on the general 0.07",
+     "the per-series multipliers come from Kalshi's public fee_changes feed rather than the fee-schedule PDF, which answers HTTP 429 from here; only quadratic (taker) rows are used, so a series known only through a market-maker-program row stays on the general 0.07",
      "the table holds the rate in force on 2026-09-16 and is flat in time; every series it changes for this archive changed before the window opened, so the replay is exact, but a mid-window change would need a dated lookup"
     ]
    },

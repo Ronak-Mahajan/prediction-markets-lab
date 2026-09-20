@@ -146,7 +146,7 @@ HEADLINE_VENUES = ("kalshi", "polymarket", "manifold")
 EMPTY_NOTE = ("No settled market in this archive has a recorded quote at "
               "any scored horizon, so every calibration table below is "
               "empty. This is the expected state until recorded markets "
-              "resolve; it is not a failure.")
+              "begin to resolve.")
 
 
 # --------------------------------------------------------------------------
