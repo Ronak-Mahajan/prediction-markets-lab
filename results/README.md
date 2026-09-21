@@ -1,6 +1,6 @@
 # Coherence over the archive
 
-Generated 2026-09-18T21:41:49Z by `python -m pmlab.replay` at commit `bc4505a27d19`.
+Generated 2026-09-18T21:41:49Z by `python -m pmlab.replay` at commit `71d96e109e2c`.
 
 **Archive replayed:** 163 snapshots, 2026-08-23T01:18:06Z to 2026-09-18T17:43:28Z (26.7 days), realised cadence median 3.5 h / max 12.6 h.  
 **Archive identity (sha256 of the blob list):** `8963d1802903d86cb2dc9233ddd309caf5fdb9bc12964e45cbdb0a451d91acc4`
