@@ -15,7 +15,7 @@ on:
       - requirements-dev.txt
       - .github/workflows/analysis.yml
 permissions:
-  contents: write
+  contents: read
 concurrency:
   group: analysis-${{ github.ref }}
   cancel-in-progress: true
@@ -24,8 +24,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4          # code plus the 117 main-branch snapshots
-      - uses: actions/setup-python@v5
+      # Code plus the snapshots committed under data/ on main.
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.12"
 
@@ -61,11 +64,12 @@ jobs:
       # runner.
       - name: checkout data branch into ./archive
         if: steps.probe.outputs.exists == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           ref: data
           path: archive
           fetch-depth: 1
+          persist-credentials: false
 
       # The per-blob screen cache (pmlab/cache.py). A snapshot's ladder,
       # complement and bucket counts depend on nothing but that snapshot's
@@ -90,7 +94,7 @@ jobs:
       # minutes again is a per-blob quote index written once and read instead
       # of the blob; raising the timeout is not the fix.
       - name: restore the replay cache
-        uses: actions/cache@v4
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         with:
           path: .replaycache
           key: replay-v1-${{ hashFiles('pmlab/*.py') }}-${{ github.run_id }}
@@ -129,34 +133,26 @@ jobs:
           python scripts/check_readme.py --min-markers 10 2>&1 | tee -a ci.log
           exit ${PIPESTATUS[0]}
 
-      - name: commit results to this branch
-        if: github.ref != 'refs/heads/main'
-        run: |
-          set -e
-          git config user.name "recorder"
-          git config user.email "actions@users.noreply.github.com"
-          git add results README.md
-          if git diff --cached --quiet; then
-            echo "results unchanged"; exit 0
-          fi
-          git commit -m "results: replay of the archive $(date -u +%Y-%m-%dT%H:%MZ) [skip ci]"
-          for i in 1 2 3 4 5; do
-            git pull --rebase origin "$GITHUB_REF_NAME" || { git rebase --abort || true; }
-            if git push origin "HEAD:$GITHUB_REF_NAME"; then
-              echo "pushed on attempt $i"; exit 0
-            fi
-            sleep $((5 * i))
-          done
-          echo "push failed after 5 attempts"; exit 1
+      # The job has a read-only token and commits nothing. The regenerated
+      # results/ and the synced README.md are kept as a run artifact, to be
+      # compared with the committed ones.
+      - name: upload replay results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: replay-results
+          path: |
+            results/
+            README.md
+          retention-days: 30
+          overwrite: true
 
-      - name: save failure log
-        if: failure() && github.ref != 'refs/heads/main'
-        run: |
-          mkdir -p .ci
-          tail -c 60000 ci.log > .ci/last-failure-analysis.log 2>/dev/null || echo "no ci.log captured" > .ci/last-failure-analysis.log
-          git config user.name "ci-bot"
-          git config user.email "ci-bot@users.noreply.github.com"
-          git add .ci
-          git commit -m "ci: failure log [skip ci]" || exit 0
-          git pull --rebase origin "$GITHUB_REF_NAME" || true
-          git push origin "HEAD:$GITHUB_REF_NAME"
+      - name: upload failure log
+        if: failure()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: ci-log-replay
+          path: ci.log
+          if-no-files-found: ignore
+          retention-days: 14
+          overwrite: true
