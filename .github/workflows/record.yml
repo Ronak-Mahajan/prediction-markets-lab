@@ -10,7 +10,7 @@ on:
       - pmlab/**
       - .github/workflows/record.yml
 permissions:
-  contents: write
+  contents: read
 concurrency:
   group: data-branch          # record and settle both write the data branch; serialise them
   cancel-in-progress: false
@@ -18,9 +18,12 @@ jobs:
   snapshot:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: write         # the one job that pushes, and only to the data branch
     steps:
-      - uses: actions/checkout@v4          # code from the triggering ref (main for the cron)
-      - uses: actions/setup-python@v5
+      # Code from the triggering ref (main for the cron).
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.12"
 
@@ -38,7 +41,7 @@ jobs:
       # of a run stays flat as the branch grows.
       - name: checkout data branch into ./archive (partial, sparse)
         if: steps.probe.outputs.exists == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           ref: data
           path: archive
@@ -104,7 +107,7 @@ jobs:
 
       - name: upload failure log
         if: failure()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: ci-log-snapshot
           path: ci.log

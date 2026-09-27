@@ -8,6 +8,10 @@ snapshots committed on ``main`` change only by pull request. ci.yml and
 analysis.yml push nothing; a failure log or a regenerated ``results/``
 leaves the run as an artifact.
 
+Every token starts read-only. The two jobs that push ask for write at job
+level, a job that does not push keeps no credentials in its checkout, and
+every action is pinned to a commit.
+
 The other thing pinned here is that a job with nothing to do exits green.
 Both the settle job and the analysis job run before the ``data`` branch
 exists, and "no data yet" is the ordinary state of a fresh branch, not a
@@ -257,10 +261,70 @@ def test_the_push_check_rejects_an_action_that_could_push():
     assert any("may push" in p for p in problems), problems
 
 
+# ---------------------------------------------------------------------------
+# tokens and credentials
+
 @pytest.mark.parametrize("path", WORKFLOWS, ids=lambda p: Path(p).name)
-def test_a_writing_workflow_asks_for_write_permission(path):
+def test_every_token_starts_read_only(path):
+    assert load(path).get("permissions") == {"contents": "read"}, path
+
+
+@pytest.mark.parametrize("path", WORKFLOWS, ids=lambda p: Path(p).name)
+def test_only_a_job_that_pushes_can_write(path):
     doc = load(path)
-    assert (doc.get("permissions") or {}).get("contents") == "write", path
+    counts, _ = push_problems(doc)
+    for job, spec in doc["jobs"].items():
+        perms = spec.get("permissions") or {}
+        assert isinstance(perms, dict), f"{path}:{job}: {perms!r}"
+        writes = [k for k, v in perms.items() if v == "write"]
+        if counts[job]:
+            assert writes == ["contents"], f"{path}:{job}"
+        else:
+            assert not writes, f"{path}:{job}"
+
+
+@pytest.mark.parametrize("path", WORKFLOWS, ids=lambda p: Path(p).name)
+def test_a_job_that_does_not_push_keeps_no_credentials(path):
+    doc = load(path)
+    counts, _ = push_problems(doc)
+    for job, step in steps(doc):
+        if counts[job] or not str(step.get("uses", "")).startswith(
+                "actions/checkout@"):
+            continue
+        assert (step.get("with") or {}).get("persist-credentials") is False, (
+            f"{path}:{job}")
+
+
+#: ``uses: owner/repo@<40-hex sha> # vX.Y.Z`` and nothing else.
+PINNED = re.compile(r"^\s*(?:-\s+)?uses:\s+(?P<action>[\w.-]+/[\w.-]+)"
+                    r"@(?P<sha>[0-9a-f]{40})\s+#\s+(?P<tag>v\d+\.\d+\.\d+)\s*$")
+
+
+def _uses_lines(path: str) -> list[str]:
+    with open(path, encoding="utf-8") as fh:
+        return [ln.rstrip("\n") for ln in fh
+                if re.match(r"^\s*(?:-\s+)?uses:", ln)]
+
+
+@pytest.mark.parametrize("path", WORKFLOWS, ids=lambda p: Path(p).name)
+def test_every_action_is_pinned_to_a_commit(path):
+    """A tag can be moved to other code; a commit cannot."""
+    lines = _uses_lines(path)
+    assert lines, path
+    for ln in lines:
+        assert PINNED.match(ln), f"{Path(path).name}: {ln.strip()}"
+
+
+def test_each_action_is_pinned_to_one_commit_everywhere():
+    seen: dict[str, set[tuple[str, str]]] = {}
+    for path in WORKFLOWS:
+        for ln in _uses_lines(path):
+            m = PINNED.match(ln)
+            if m:
+                seen.setdefault(m["action"], set()).add((m["sha"], m["tag"]))
+    assert seen
+    for action, pins in seen.items():
+        assert len(pins) == 1, (action, pins)
 
 
 @pytest.mark.parametrize("path", WORKFLOWS, ids=lambda p: Path(p).name)
