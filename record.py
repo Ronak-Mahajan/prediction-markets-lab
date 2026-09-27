@@ -230,10 +230,12 @@ def fetch_kalshi() -> tuple[list[dict], dict]:
 
 # ----------------------------------------------------------------- Polymarket
 
+# feesEnabled, feeType and feeSchedule ({rate, exponent, takerOnly, ...}) are
+# the market's own taker fee terms, which pmlab.fees charges on every leg.
 POLYMARKET_KEYS = ["id", "question", "slug", "endDate", "liquidity", "liquidityNum",
                    "volume", "volumeNum", "bestBid", "bestAsk", "outcomePrices",
                    "outcomes", "conditionId", "closed", "closedTime", "negRisk",
-                   "umaResolutionStatus"]
+                   "umaResolutionStatus", "feesEnabled", "feeType", "feeSchedule"]
 
 
 def fetch_polymarket(now: datetime) -> tuple[list[dict], dict]:

@@ -185,13 +185,133 @@ def test_reduced_multiplier_is_honoured_when_filled(monkeypatch):
     assert fees.kalshi_taker_fee(0.50, 1, "KXOTHER") == pytest.approx(0.02)
 
 
-def test_polymarket_fee_defaults_to_zero_with_a_working_override():
-    assert fees.polymarket_taker_fee(0.5) == 0.0
-    fees.POLYMARKET_TAKER_OVERRIDES["m1"] = 0.02
-    try:
-        assert fees.polymarket_taker_fee(0.50, 1.0, "m1") == pytest.approx(0.01)
-    finally:
-        fees.POLYMARKET_TAKER_OVERRIDES.pop("m1")
+def _schedule(rate, exponent=1) -> dict:
+    """A Polymarket row carrying its own Gamma fee terms."""
+    return {"feesEnabled": True, "feeType": "test_fees",
+            "feeSchedule": {"exponent": exponent, "rate": rate,
+                            "takerOnly": True, "rebateRate": 0.15}}
+
+
+@pytest.mark.parametrize("price,rate,exponent,expected", [
+    # size * rate * (P * (1-P)) ** exponent, rounded half-up to 5 dp.
+    (0.50, 0.05, 1, 0.0125),       # 0.05 * 0.25
+    (0.175, 0.05, 1, 0.00722),     # 0.00721875
+    (0.745, 0.05, 1, 0.0095),      # 0.00949875
+    (0.005, 0.05, 1, 0.00025),     # 0.00024875
+    (0.98, 0.05, 1, 0.00098),      # exact; a cent ceiling would charge 0.01
+    (0.9995, 0.04, 1, 0.00002),    # 0.00001999
+    (0.9999, 0.04, 1, 0.00001),    # 0.0000039996 rounds to 0: the floor
+    (0.50, 0.25, 2, 0.01563),      # 0.25 * 0.0625 = 0.015625, half up
+])
+def test_polymarket_taker_fee_matches_hand_computation(price, rate, exponent,
+                                                       expected):
+    fee = fees.polymarket_taker_fee(price, 1.0, row=_schedule(rate, exponent))
+    assert fee == expected
+
+
+def test_polymarket_fee_scales_with_size_and_is_zero_without_risk():
+    row = _schedule(0.05)
+    assert fees.polymarket_taker_fee(0.50, 100.0, row=row) == 1.25
+    assert fees.polymarket_taker_fee(0.0, 1.0, row=row) == 0.0
+    assert fees.polymarket_taker_fee(1.0, 1.0, row=row) == 0.0
+    assert fees.polymarket_taker_fee(0.50, 0.0, row=row) == 0.0
+    off = {"feesEnabled": False, "feeSchedule": {"rate": 0.05, "exponent": 1}}
+    assert fees.polymarket_taker_fee(0.50, 1.0, row=off) == 0.0
+
+
+def test_polymarket_schedule_comes_from_the_row_then_the_capture(monkeypatch):
+    from decimal import Decimal
+    monkeypatch.setitem(fees.POLYMARKET_MARKET_SCHEDULES, "c9",
+                        (Decimal("0.04"), 1))
+    # a schedule recorded on the row wins
+    assert fees.polymarket_schedule(
+        row={"conditionId": "c9", "id": "9", **_schedule(0.05)}) \
+        == (Decimal("0.05"), 1)
+    # without one, the captured schedule for the conditionId or a given key
+    assert fees.polymarket_schedule(row={"conditionId": "c9", "id": "9"}) \
+        == (Decimal("0.04"), 1)
+    assert fees.polymarket_schedule("c9") == (Decimal("0.04"), 1)
+    # a disabled market pays nothing whatever the capture says
+    assert fees.polymarket_schedule(
+        row={"conditionId": "c9", "feesEnabled": False})[0] == 0
+    # and a market in neither pays the fallback
+    assert fees.polymarket_schedule(row={"conditionId": "cX", "id": "X"}) \
+        == (fees.POLYMARKET_FALLBACK_TAKER_RATE, 1)
+
+
+def test_an_uncaptured_market_is_charged_the_highest_category_rate():
+    from decimal import Decimal
+    rates = fees.POLYMARKET_CATEGORY_TAKER_RATES
+    assert fees.POLYMARKET_FALLBACK_TAKER_RATE == max(rates.values())
+    assert fees.POLYMARKET_FALLBACK_TAKER_RATE == Decimal("0.07")
+    assert rates["geopolitics"] == 0
+    assert fees.polymarket_taker_fee(0.50) == 0.0175          # 0.07 * 0.25
+
+
+def test_the_archive_opens_under_the_category_schedule():
+    """The category schedule is flat in time, which is exact only if every
+    snapshot was recorded after it took effect."""
+    from pmlab.archive import snapshot_paths, snapshot_time_from_path
+    first = snapshot_paths(ROOT / "data")[0]
+    assert (snapshot_time_from_path(first).date()
+            >= fees.POLYMARKET_CATEGORY_SCHEDULE_FROM)
+
+
+def test_polymarket_schedule_table_matches_the_capture():
+    """The per-market table is the venue's own records, re-derived here so
+    it cannot drift from the file it was generated from."""
+    from decimal import Decimal
+    doc = json.loads((ROOT / fees.POLYMARKET_FEE_CAPTURE)
+                     .read_text(encoding="utf-8"))
+    assert doc["request"].endswith("/markets/{id}")
+    derived = {}
+    for m in doc["markets"]:
+        key = m.get("conditionId") or str(m["id"])
+        if m.get("feesEnabled") is False:
+            derived[key] = (Decimal(0), 1)
+            continue
+        fs = m["feeSchedule"]
+        exp = Decimal(str(fs.get("exponent", 1)))
+        derived[key] = (Decimal(str(fs["rate"])),
+                        int(exp) if exp == exp.to_integral_value() else exp)
+    table = fees.POLYMARKET_MARKET_SCHEDULES
+    assert set(table) == set(derived), set(table) ^ set(derived)
+    for k, v in derived.items():
+        assert table[k] == v, (k, table[k], v)
+    # one record for every market the capture was selected for
+    assert ({v["id"] for v in doc["violations"]}
+            == {str(m["id"]) for m in doc["markets"]})
+    # and every captured rate is one the venue publishes for some category
+    published = set(fees.POLYMARKET_CATEGORY_TAKER_RATES.values())
+    assert all(rate in published for rate, _ in table.values())
+
+
+def test_the_recorder_keeps_the_polymarket_fee_terms(monkeypatch):
+    """record.py stores each market's fee fields, and the fee model reads
+    them straight off the recorded row."""
+    import record
+    from datetime import datetime, timezone
+    from pmlab.archive import coerce_polymarket
+
+    page = [{"id": "1", "question": "q", "conditionId": "0xabc",
+             "endDate": "2027-01-01T00:00:00Z", "liquidityNum": 500.0,
+             "outcomes": '["Yes", "No"]', "outcomePrices": '["0.4", "0.6"]',
+             "bestBid": 0.39, "bestAsk": 0.41, **_schedule(0.05)},
+            {"id": "2", "question": "q2", "conditionId": "0xdef",
+             "endDate": "2027-01-01T00:00:00Z", "liquidityNum": 400.0,
+             "outcomes": '["Yes", "No"]', "outcomePrices": '["0.4", "0.6"]',
+             "feesEnabled": False, "feeType": None}]
+    monkeypatch.setattr(record, "get", lambda url: page)
+    now = datetime(2026, 9, 27, tzinfo=timezone.utc)
+    rows, _meta = record.fetch_polymarket(now)
+    by_id = {r["id"]: r for r in rows}
+    assert by_id["1"]["feeSchedule"]["rate"] == 0.05
+    assert by_id["1"]["feesEnabled"] is True
+    assert by_id["1"]["feeType"] == "test_fees"
+    assert by_id["2"]["feesEnabled"] is False
+    coerced = {r["id"]: r for r in coerce_polymarket(rows, now, 2)}
+    assert fees.polymarket_taker_fee(0.5, 1.0, row=coerced["1"]) == 0.0125
+    assert fees.polymarket_taker_fee(0.5, 1.0, row=coerced["2"]) == 0.0
 
 
 def test_predictit_fees_hand_computed():
@@ -570,22 +690,62 @@ def test_polymarket_complement_finds_the_planted_violation():
     assert rep.gross == 1
     assert rep.worst.market_id == "3"
     assert rep.worst.gross_edge == pytest.approx(0.10)
-    # Polymarket charges nothing today, so net equals gross and the table
-    # says so rather than quietly printing one number twice.
+    # No schedule recorded or captured, so each leg pays the fallback 0.07:
+    # 0.07 * 0.30 * 0.70 = 0.0147 and 0.07 * 0.60 * 0.40 = 0.0168.
+    assert rep.worst.fee == pytest.approx(0.0315)
+    assert rep.worst.net_edge == pytest.approx(0.0685)
     assert rep.net == 1
-    assert rep.worst.fee == 0.0
 
 
-def test_polymarket_fee_override_can_erase_a_violation():
-    rows = [poly_row("9", "thin edge", 0.49, 0.50, bid=0.48, ask=0.50)]
-    assert complement.screen_polymarket(rows).net == 1
-    fees.POLYMARKET_TAKER_OVERRIDES["c9"] = 0.02      # keyed on conditionId
-    try:
-        rep = complement.screen_polymarket(rows)
-        assert rep.gross == 1
-        assert rep.net == 0
-    finally:
-        fees.POLYMARKET_TAKER_OVERRIDES.pop("c9")
+def test_the_market_schedule_decides_whether_a_violation_survives(monkeypatch):
+    """One cent of gross edge at 0.49 / 0.50: a market that charges nothing
+    keeps it, and one on the 0.05 sports schedule pays 2.5 cents."""
+    fee_free = [dict(poly_row("9", "thin edge", 0.49, 0.50, bid=0.48, ask=0.50),
+                     feesEnabled=False)]
+    assert complement.screen_polymarket(fee_free).net == 1
+    sports = [dict(poly_row("9", "thin edge", 0.49, 0.50, bid=0.48, ask=0.50),
+                   **_schedule(0.05))]
+    rep = complement.screen_polymarket(sports)
+    assert rep.gross == 1 and rep.net == 0
+    assert rep.worst.fee == pytest.approx(0.025)
+    # without a recorded schedule the captured one applies, by conditionId
+    from decimal import Decimal
+    monkeypatch.setitem(fees.POLYMARKET_MARKET_SCHEDULES, "c9",
+                        (Decimal("0"), 1))
+    plain = [poly_row("9", "thin edge", 0.49, 0.50, bid=0.48, ask=0.50)]
+    assert complement.screen_polymarket(plain).net == 1
+
+
+def test_archive_violations_net_of_each_markets_captured_fee():
+    """Four violations as the archive recorded them, without fee fields, so
+    each is charged its captured schedule.
+
+    FC Hradec Kralove (3597573) 0.175 + 0.745 is 8.0c gross and pays
+    0.00722 + 0.00950 at 0.05; IA Akranes (3667806) 0.005 + 0.98 is 1.5c
+    and pays 0.00025 + 0.00098. The half-cent sports quote (3785948) pays
+    2.5c and the 0.05c "Trump" headline quote (3768581) pays 0.00061 +
+    0.00059 at 0.04, so neither survives.
+    """
+    rows = [
+        dict(poly_row("3597573", "btts", 0.175, 0.745),
+             conditionId="0x7a954fcd55c5fc1a811a50c5b9b60ce66613a185b9b680a371d2f9b2f45f1f88"),
+        dict(poly_row("3667806", "first goal", 0.005, 0.98),
+             conditionId="0xfb3f391ef907b93bb7b5932b55e2910c50aff28b7bb9fca707f59cf708c1e4da"),
+        dict(poly_row("3785948", "half cent", 0.49, 0.505),
+             conditionId="0x5c3046522f7b1793a4f7f28d6d682fe978f6f537e858c2fabe1fb5d86b583511"),
+        dict(poly_row("3768581", "headline", 0.9845, 0.015),
+             conditionId="0x77707e31961fc34136cc5b163cec8430a1770224733ed23e757d952e2ee11e2d"),
+    ]
+    rep = complement.screen_polymarket(rows)
+    assert rep.gross == 4 and rep.net == 2
+    by_id = {v.market_id: v for v in rep.violations}
+    assert by_id["3597573"].fee == pytest.approx(0.01672)
+    assert by_id["3597573"].net_edge == pytest.approx(0.06328)
+    assert by_id["3667806"].fee == pytest.approx(0.00123)
+    assert by_id["3667806"].net_edge == pytest.approx(0.01377)
+    assert by_id["3785948"].fee == pytest.approx(0.025)
+    assert by_id["3768581"].fee == pytest.approx(0.0012)
+    assert by_id["3768581"].net_edge < 0 < by_id["3768581"].gross_edge
 
 
 def test_polymarket_crossed_book_is_counted_separately():

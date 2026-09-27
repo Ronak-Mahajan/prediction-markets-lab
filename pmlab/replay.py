@@ -389,6 +389,12 @@ def summarise(rows: list[dict], paths: list[Path], roots: tuple[str, ...],
             "gross_numeric_era": sum(
                 int(r["poly_complement_gross"]) for r in rows
                 if r["poly_era"] != "string_sorted"),
+            "net_string_sorted_era": sum(
+                int(r["poly_complement_net"]) for r in rows
+                if r["poly_era"] == "string_sorted"),
+            "net_numeric_era": sum(
+                int(r["poly_complement_net"]) for r in rows
+                if r["poly_era"] != "string_sorted"),
             "snapshots_string_sorted_era": sum(
                 1 for r in rows if r["poly_era"] == "string_sorted"),
             "snapshots_numeric_era": sum(

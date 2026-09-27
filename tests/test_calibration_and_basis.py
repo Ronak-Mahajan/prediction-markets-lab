@@ -714,18 +714,23 @@ def test_pair_edges_are_hand_computed():
 
     A->B: buy Kalshi YES at 0.60 and Polymarket NO at 1 - 0.65 = 0.35;
     the pair pays $1, so the gross edge is 0.05. Kalshi charges
-    ceil(0.07 * 0.60 * 0.40) = ceil(0.0168) = 0.02 and Polymarket charges
-    nothing, so the net edge is 0.03.
+    ceil(0.07 * 0.60 * 0.40) = ceil(0.0168) = 0.02. Market "1" has no
+    recorded or captured schedule, so Polymarket charges the fallback 0.07:
+    0.07 * 0.35 * 0.65 = 0.015925, rounded to 0.01593. The net edge is
+    0.05 - 0.02 - 0.01593 = 0.01407.
+
+    B->A: Polymarket YES at 0.70 pays 0.07 * 0.21 = 0.0147 and Kalshi NO at
+    0.45 pays ceil(0.017325) = 0.02, against a gross edge of -0.15.
     """
     a, b = (0.55, 0.60), (0.65, 0.70)
     e = basis.pair_edges(a, b, basis.Leg("kalshi", "A"),
                          basis.Leg("polymarket", "1"))
     assert e["gross_ab"] == pytest.approx(0.05)
-    assert e["net_ab"] == pytest.approx(0.03)
+    assert e["net_ab"] == pytest.approx(0.01407)
     assert e["gross_ba"] == pytest.approx(-0.15)
-    assert e["net_ba"] == pytest.approx(-0.17)
+    assert e["net_ba"] == pytest.approx(-0.1847)
     assert e["best_direction"] == "a->b"
-    assert e["best_net"] == pytest.approx(0.03)
+    assert e["best_net"] == pytest.approx(0.01407)
 
 
 def test_a_no_leg_is_the_complement_of_the_recorded_book():
@@ -741,7 +746,8 @@ def test_predictit_leg_fee_is_an_upper_bound():
     proceeds = 1.0 - 0.10 * 0.40
     proceeds -= 0.05 * proceeds
     assert f == pytest.approx(1.0 - proceeds)
-    assert basis.leg_fee("polymarket", 0.60) == 0.0
+    # a Polymarket market with no known schedule pays the fallback rate
+    assert basis.leg_fee("polymarket", 0.60) == pytest.approx(0.0168)
     assert basis.leg_fee("kalshi", 0.60) == pytest.approx(0.02)
 
 
@@ -811,8 +817,9 @@ def test_a_verified_pair_is_priced_across_the_archive(tmp_path):
     assert row["basis_cents"]["share_positive"] == pytest.approx(1.0)
     # b->a: buy Polymarket YES at 0.65, Kalshi NO at 1 - 0.65 = 0.35.
     # gross = 0.65 - 0.65 = 0.0; Kalshi charges
-    # ceil(0.07 * 0.35 * 0.65) = ceil(0.0159) = 0.02 -> net -2 cents.
-    assert row["edge_cents"]["net_median"] == pytest.approx(-2.0)
+    # ceil(0.07 * 0.35 * 0.65) = ceil(0.0159) = 0.02 and Polymarket, with no
+    # schedule for market "1", 0.07 * 0.65 * 0.35 = 0.01593 -> net -3.593c.
+    assert row["edge_cents"]["net_median"] == pytest.approx(-3.593)
     assert row["edge_cents"]["snapshots_net_positive"] == 0
     # A constant basis has no decay, so no half-life is reported.
     assert row["half_life"]["half_life_hours"] is None

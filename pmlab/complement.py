@@ -42,8 +42,9 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 
+from .fees import edge as fee_edge
 from .fees import (polymarket_taker_fee, predictit_pair_net_edge,
-                   predictit_profit_fee)
+                   predictit_profit_fee, survives)
 
 TOL = 1e-9
 
@@ -211,18 +212,19 @@ def screen_polymarket(rows: list[dict]) -> PolyReport:
         totals.append(total)
         if total >= 1.0 - TOL:
             continue
-        mid = str(r.get("conditionId") or r.get("id") or "")
-        fee = (polymarket_taker_fee(a, 1.0, mid)
-               + polymarket_taker_fee(b, 1.0, mid))
+        # One share of each outcome at its quoted price, each leg charged
+        # the market's own taker schedule (see pmlab.fees).
+        fee = (polymarket_taker_fee(a, 1.0, row=r)
+               + polymarket_taker_fee(b, 1.0, row=r))
         v = PolyViolation(market_id=str(r.get("id") or ""),
                           question=str(r.get("question") or ""),
                           outcomes=names, prices=(a, b), total=total,
                           gross_edge=1.0 - total,
-                          net_edge=1.0 - total - fee, fee=fee,
+                          net_edge=fee_edge(1.0 - total - fee), fee=fee,
                           liquidity=r.get("liquidity"),
                           era=str(r.get("era") or ""))
         rep.gross += 1
-        if v.net_edge > 0:
+        if survives(v.net_edge):
             rep.net += 1
         if rep.worst is None or v.gross_edge > rep.worst.gross_edge:
             rep.worst = v
