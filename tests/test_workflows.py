@@ -1,11 +1,12 @@
 """The four workflows, checked as data rather than read by eye.
 
-Three of them push. Two write generated files (results, failure logs) to
-whatever branch triggered them, and two write snapshots and settlements to
-the orphan ``data`` branch. None of them may write to ``main``: the cron
-runs from ``main``, so a workflow that pushed there would rewrite the
-branch it is launched from, and the repository's own rule is that the 117
-committed snapshots and the code on ``main`` change only by pull request.
+Two of them push, and only to the orphan ``data`` branch: record.yml
+appends snapshots and settle.yml appends settlements. None of them may
+write to ``main``: the cron runs from ``main``, so a workflow that pushed
+there would rewrite the branch it is launched from, and the code and the
+snapshots committed on ``main`` change only by pull request. ci.yml and
+analysis.yml push nothing; a failure log or a regenerated ``results/``
+leaves the run as an artifact.
 
 The other thing pinned here is that a job with nothing to do exits green.
 Both the settle job and the analysis job run before the ``data`` branch
@@ -26,6 +27,9 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOWS = sorted(glob.glob(str(ROOT / ".github" / "workflows" / "*.yml")))
+
+#: The workflows that push, and so the only ones whose jobs may write.
+PUSHERS = {"record.yml", "settle.yml"}
 
 #: Every action a workflow may use. None of them pushes; an action outside
 #: this set could push without a ``git push`` line for the checks to see.
@@ -161,8 +165,11 @@ def push_problems(doc: dict) -> tuple[dict[str, int], list[str]]:
 def test_no_step_can_push_to_main(path):
     counts, problems = push_problems(load(path))
     assert not problems, problems
-    if Path(path).name != "ci.yml":
-        assert sum(counts.values()), f"{path} was expected to push somewhere"
+    pushes = sum(counts.values())
+    if Path(path).name in PUSHERS:
+        assert pushes, f"{path} was expected to push to the data branch"
+    else:
+        assert not pushes, f"{path} was expected to push nothing"
 
 
 def _workflow(*step_yaml: str, job_if: str = "") -> dict:
@@ -264,20 +271,50 @@ def test_every_job_has_a_timeout(path):
         assert spec.get("timeout-minutes"), f"{path}:{job}"
 
 
-def test_the_jobs_that_write_a_failure_log_exclude_main():
-    """The write-back is the only way a CI failure is readable without a
-    token, and it must never land on main."""
-    seen = 0
-    for path in WORKFLOWS:
-        for job, step in steps(load(path)):
-            name = str(step.get("name") or "")
-            if "failure log" not in name:
-                continue
-            seen += 1
-            cond = str(step.get("if", ""))
-            assert "failure()" in cond, f"{path}:{name}"
-            assert _excludes_main(cond), f"{path}:{name}"
-    assert seen == 4, seen
+# ---------------------------------------------------------------------------
+# what leaves a run
+
+@pytest.mark.parametrize("path", WORKFLOWS, ids=lambda p: Path(p).name)
+def test_a_failure_log_leaves_the_run_as_an_artifact(path):
+    """Every job tees its output into ci.log. On failure the log is uploaded
+    with the run; it is never committed to a branch."""
+    doc = load(path)
+    for job, spec in doc["jobs"].items():
+        runs = [s.get("run") or "" for s in spec["steps"]]
+        assert not any(".ci/" in r for r in runs), f"{path}:{job}"
+        if not any("ci.log" in r for r in runs):
+            continue
+        uploads = [s for s in spec["steps"]
+                   if str(s.get("uses", "")).startswith(
+                       "actions/upload-artifact@")
+                   and "ci.log" in str((s.get("with") or {}).get("path"))]
+        assert uploads, f"{path}:{job} writes ci.log but never uploads it"
+        assert all("failure()" in str(s.get("if", "")) for s in uploads), (
+            f"{path}:{job}")
+
+
+@pytest.mark.parametrize("path", WORKFLOWS, ids=lambda p: Path(p).name)
+def test_a_job_that_does_not_push_commits_nothing(path):
+    doc = load(path)
+    counts, _ = push_problems(doc)
+    for job, step in steps(doc):
+        if not counts[job]:
+            assert "git commit" not in (step.get("run") or ""), (
+                f"{path}:{job}:{step.get('name')!r}")
+
+
+def test_the_analysis_job_keeps_its_results_as_an_artifact():
+    """The replay regenerates results/ and README.md; the job uploads both,
+    on success as well as on failure."""
+    doc = load(str(ROOT / ".github" / "workflows" / "analysis.yml"))
+    uploads = [s for _, s in steps(doc)
+               if str(s.get("uses", "")).startswith("actions/upload-artifact@")
+               and "results/" in str((s.get("with") or {}).get("path"))]
+    assert len(uploads) == 1, uploads
+    assert "README.md" in uploads[0]["with"]["path"]
+    assert "failure()" not in str(uploads[0].get("if", ""))
+    order = [s.get("name") for _, s in steps(doc)]
+    assert order.index(uploads[0]["name"]) > order.index("replay the archive")
 
 
 def test_the_data_branch_being_absent_is_green_not_red():

@@ -768,8 +768,8 @@ def test_replay_fails_loudly_on_a_broken_kalshi_identity(tmp_path):
 
 
 def test_replay_is_byte_stable_across_runs(tmp_path):
-    """CI commits results/ daily; a re-run that changes nothing must produce
-    the same bytes, or the archive fills with commits that say nothing."""
+    """results/ is committed; a re-run that changes nothing must produce the
+    same bytes, or every replay leaves a diff that says nothing."""
     root = tmp_path / "data"
     write_synthetic_snapshot(root / "20260901" / "0100Z.json.gz",
                              "2026-09-01T01:00:00Z", inverted=True)

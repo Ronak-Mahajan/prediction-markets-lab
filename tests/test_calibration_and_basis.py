@@ -499,7 +499,7 @@ def test_replay_writes_the_calibration_tables_when_settlements_exist(tmp_path):
 
 
 def test_calibration_output_is_byte_stable_across_runs(tmp_path):
-    """CI commits results/; an unchanged archive must produce no diff, and
+    """results/ is committed; an unchanged archive must produce no diff, and
     the block bootstrap is the part most likely to break that."""
     data, settle = write_calibration_archive(tmp_path)
     outs = []

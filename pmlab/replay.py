@@ -513,7 +513,7 @@ def keep_stamp_if_unchanged(summary: dict, previous: Path) -> dict:
 
     The daily job re-runs whether or not a snapshot arrived. Stamping a
     fresh wall-clock time on an otherwise byte-identical result would
-    produce a commit a day that says nothing, so ``generated`` means "when
+    produce a diff a day that says nothing, so ``generated`` means "when
     these numbers were first produced" rather than "when the job last ran".
     Everything else -- including the code commit -- still counts as a
     change, because a number produced by different code is a different

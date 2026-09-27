@@ -22,10 +22,11 @@ complains if they disagree. Formatting is preserved: if the prose writes
 and if it writes ``3.3`` the comparison is to one decimal place, so a
 README may round as long as it rounds honestly.
 
-``--write`` is how the analysis workflow keeps the two in sync as the
-archive grows: regenerate results, rewrite the markers, commit both, then
-run the plain check as a verification step. A human editing a number by
-hand in a pull request still fails, which is the point.
+``--write`` is how a replay keeps the two in sync as the archive grows:
+regenerate results, rewrite the markers, commit both, then run the plain
+check as a verification step. The analysis workflow runs the same
+sequence and keeps both files as a run artifact. A human editing a number
+by hand in a pull request still fails, which is the point.
 """
 from __future__ import annotations
 

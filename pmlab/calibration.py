@@ -105,7 +105,7 @@ LOG_CLIP = 1e-4
 
 RELIABILITY_BINS = 10
 
-#: Block bootstrap. Fixed seed: this output is committed by CI and must be
+#: Block bootstrap. Fixed seed: this output is committed and must be
 #: byte-identical on a re-run of the same archive.
 BOOTSTRAP_DRAWS = 1000
 BOOTSTRAP_SEED = 20260911

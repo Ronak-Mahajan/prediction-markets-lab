@@ -129,34 +129,26 @@ jobs:
           python scripts/check_readme.py --min-markers 10 2>&1 | tee -a ci.log
           exit ${PIPESTATUS[0]}
 
-      - name: commit results to this branch
-        if: github.ref != 'refs/heads/main'
-        run: |
-          set -e
-          git config user.name "recorder"
-          git config user.email "actions@users.noreply.github.com"
-          git add results README.md
-          if git diff --cached --quiet; then
-            echo "results unchanged"; exit 0
-          fi
-          git commit -m "results: replay of the archive $(date -u +%Y-%m-%dT%H:%MZ) [skip ci]"
-          for i in 1 2 3 4 5; do
-            git pull --rebase origin "$GITHUB_REF_NAME" || { git rebase --abort || true; }
-            if git push origin "HEAD:$GITHUB_REF_NAME"; then
-              echo "pushed on attempt $i"; exit 0
-            fi
-            sleep $((5 * i))
-          done
-          echo "push failed after 5 attempts"; exit 1
+      # The job commits nothing. The regenerated results/ and the synced
+      # README.md are kept as a run artifact, to be compared with the
+      # committed ones.
+      - name: upload replay results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: replay-results
+          path: |
+            results/
+            README.md
+          retention-days: 30
+          overwrite: true
 
-      - name: save failure log
-        if: failure() && github.ref != 'refs/heads/main'
-        run: |
-          mkdir -p .ci
-          tail -c 60000 ci.log > .ci/last-failure-analysis.log 2>/dev/null || echo "no ci.log captured" > .ci/last-failure-analysis.log
-          git config user.name "ci-bot"
-          git config user.email "ci-bot@users.noreply.github.com"
-          git add .ci
-          git commit -m "ci: failure log [skip ci]" || exit 0
-          git pull --rebase origin "$GITHUB_REF_NAME" || true
-          git push origin "HEAD:$GITHUB_REF_NAME"
+      - name: upload failure log
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: ci-log-replay
+          path: ci.log
+          if-no-files-found: ignore
+          retention-days: 14
+          overwrite: true

@@ -41,14 +41,12 @@ jobs:
               print("ok", f)
           EOF
           exit ${PIPESTATUS[0]}
-      - name: save failure log
-        if: failure() && github.ref != 'refs/heads/main'
-        run: |
-          mkdir -p .ci
-          tail -c 60000 ci.log > .ci/last-failure-test.log 2>/dev/null || echo "no ci.log captured" > .ci/last-failure-test.log
-          git config user.name "ci-bot"
-          git config user.email "ci-bot@users.noreply.github.com"
-          git add .ci
-          git commit -m "ci: failure log [skip ci]" || exit 0
-          git pull --rebase origin "$GITHUB_REF_NAME" || true
-          git push origin "HEAD:$GITHUB_REF_NAME"
+      - name: upload failure log
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: ci-log-test
+          path: ci.log
+          if-no-files-found: ignore
+          retention-days: 14
+          overwrite: true
