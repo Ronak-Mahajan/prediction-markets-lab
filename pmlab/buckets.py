@@ -19,9 +19,11 @@ Two guards keep the count from being manufactured:
 
 * at least three quoted buckets, so a two-way market is not counted twice
   as the complement screen;
-* every bucket must have a live ask. One bucket with no offer makes the
-  sum meaningless, and the missing one is usually the favourite, which
-  would turn every thin event into a fake underround.
+* every bucket must have a live ask, strictly between $0 and $1. One
+  bucket with no offer makes the sum meaningless, and the missing one is
+  usually the favourite, which would turn every thin event into a fake
+  underround. Kalshi shows an empty offer side as a $1.00 ask with zero
+  size, so that price is no offer either.
 
 Gross is the sum of asks. Net adds the venue fee on every leg, each
 rounded up to the cent on its own, which for a ten-bucket event is ten
@@ -96,7 +98,7 @@ def screen_buckets(rows: list[dict], min_buckets: int = 3) -> BucketReport:
         asks = [m.get("yes_ask") for m in markets]
         if len(asks) < min_buckets:
             continue
-        if any(a is None or not 0.0 < a <= 1.0 for a in asks):
+        if any(a is None or not 0.0 < a < 1.0 for a in asks):
             continue
         rep.screened += 1
         s = float(sum(asks))                     # type: ignore[arg-type]

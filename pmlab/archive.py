@@ -237,9 +237,28 @@ def detect_schema(raw: dict) -> int:
     return int(s) if isinstance(s, int) and s > 0 else 1
 
 
+def _kalshi_side(price: float | None, size: float | None) -> bool:
+    """Does one side of a Kalshi YES book hold a resting order?
+
+    Only a price strictly inside (0, 1) is an order. The venue derives the
+    YES ask from the best NO bid, so a side with no orders shows as a bid of
+    $0.00 or an ask of $1.00, and in every schema-2 blob recorded so far
+    that $1.00 ask carries a size of zero. Where the recorder stored a
+    size, the side must also have some; v1 stored none, and there the
+    price alone decides.
+    """
+    if price is None or not 0.0 < price < 1.0:
+        return False
+    return size is None or size > 0.0
+
+
 def coerce_kalshi(events: list[dict], schema: int,
                   keep: set[str] | None = None) -> list[dict]:
     """Flatten events -> one row per market with event fields attached.
+
+    ``two_sided`` is true only when both the YES bid and the YES ask are
+    resting orders (see :func:`_kalshi_side`). On schema 2, ``quoted`` is
+    recomputed from the same rule: at least one side holds an order.
 
     ``keep``, when given, is a set of tickers: every other market is
     skipped before it is coerced. See :func:`snapshot_from_raw`.
@@ -259,11 +278,16 @@ def coerce_kalshi(events: list[dict], schema: int,
                 r[dst] = to_float(m.get(src))
             for src, dst in KALSHI_FLOAT_FIELDS.items():
                 r[dst] = to_float(m.get(src))
-            yb, ya = r["yes_bid"] or 0.0, r["yes_ask"] or 0.0
-            if "quoted" not in r:
+            has_bid = _kalshi_side(r["yes_bid"], r["yes_bid_size"])
+            has_ask = _kalshi_side(r["yes_ask"], r["yes_ask_size"])
+            if schema >= 2:
+                # Recomputed rather than read: the stored flag counts a $1.00
+                # ask as a quote, and it keeps that meaning in the blobs.
+                r["quoted"] = has_bid or has_ask
+            elif "quoted" not in r:
                 # v1 dropped unquoted markets, so anything present was quoted.
-                r["quoted"] = bool(yb > 0 or ya > 0) if schema >= 2 else True
-            r["two_sided"] = bool(yb > 0 and ya > 0)
+                r["quoted"] = True
+            r["two_sided"] = has_bid and has_ask
             r["close_dt"] = parse_time(m.get("close_time"))
             r["expected_expiration_dt"] = parse_time(m.get("expected_expiration_time"))
             rows.append(r)

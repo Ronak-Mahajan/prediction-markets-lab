@@ -48,7 +48,7 @@ def kmarket(ticker: str, event: str, bid: float, ask: float, *,
         "cap_strike": cap_strike, "mutually_exclusive": mutually_exclusive,
         "yes_bid": bid, "yes_ask": ask,
         "no_bid": round(1.0 - ask, 10), "no_ask": round(1.0 - bid, 10),
-        "two_sided": bid > 0 and ask > 0, "quoted": True,
+        "two_sided": 0 < bid < 1 and 0 < ask < 1, "quoted": True,
     }
 
 
@@ -655,6 +655,28 @@ def test_a_bucket_with_no_ask_disqualifies_the_event():
     rows[1]["yes_ask"] = None
     rep = buckets.screen_buckets(rows)
     assert rep.events == 1 and rep.screened == 0 and rep.gross == 0
+
+
+def test_a_one_dollar_ask_is_no_offer_in_a_bucket_event():
+    """Kalshi shows an empty offer side as a $1.00 ask with zero size. A
+    bucket quoted that way cannot be bought, so the event is not screened."""
+    ev = "KXDOLLAR-26"
+    rows = [kmarket(f"{ev}-{i}", ev, 0.10, 0.12, mutually_exclusive=True)
+            for i in range(4)]
+    rows[2] = kmarket(f"{ev}-2", ev, 0.0, 1.0, mutually_exclusive=True)
+    rep = buckets.screen_buckets(rows)
+    assert rep.events == 1 and rep.screened == 0 and rep.gross == 0
+
+
+def test_a_one_dollar_ask_is_not_a_ladder_rung():
+    ev = "KXBIDONLY-26"
+    rows = [kmarket(f"{ev}-{i}", ev, b, a, sub_title=f"Above {s}")
+            for i, (s, b, a) in enumerate(
+                ((10, 0.97, 1.0), (20, 0.5, 0.52), (30, 0.2, 0.22),
+                 (40, 0.1, 0.12)))]
+    assert rows[0]["two_sided"] is False
+    lad = ladders.build_ladders(rows)[0]
+    assert [r.threshold for r in lad.rungs] == [20.0, 30.0, 40.0]
 
 
 def test_two_bucket_events_are_left_to_the_complement_screen():

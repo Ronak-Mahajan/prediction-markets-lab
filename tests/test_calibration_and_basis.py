@@ -9,17 +9,15 @@ if either moves, the arithmetic changed, not the data.
 The other load-bearing cases are the two refusals. A market/horizon cell
 whose only quote is older than the age cap is reported unscored rather
 than scored on a stale price, and a cell whose only book is one-sided is
-reported unscored rather than scored on a mid that is not a price.
+reported unscored rather than scored on a mid that is not a price. A
+Kalshi book whose ask reads $1.00 at zero size is one-sided.
 
 The third case is a refusal *not* made, and it is pinned here on purpose:
-a wide two-sided book is still reported. On the 2026-09-11 archive the top
-ask bin carries a -30.9 cent favourite-longshot bias over 679 forecasts
-with a median spread of 86 cents, and splitting it on the spread moves the
-realised frequency from 42.7% (spread above 10c, 393 forecasts) to 98.6%
-(spread at or below 10c, 286 forecasts, mean ask 0.992). The tables
-therefore carry a median spread per bin instead of a spread filter, and
-``test_flb_bins_report_the_spread_that_explains_them`` is what keeps that
-column honest.
+a wide two-sided book is still reported. A quote on a thin book can be
+tens of cents wide, and in the top ask bin that width can account for
+most of the measured favourite-longshot bias. The tables therefore carry a
+median spread per bin instead of a spread filter, and
+``test_flb_bins_report_the_spread_that_explains_them`` pins that column.
 """
 from __future__ import annotations
 
@@ -343,6 +341,56 @@ def test_a_one_sided_book_is_never_scored(tmp_path):
     """m6 is quoted 0.00 / 0.90. Its "mid" of 0.45 is not a price."""
     keys = {o.key for o in _observations(tmp_path)}
     assert "m6" not in keys
+
+
+#: A Kalshi market as record.py v2 stores it when the book holds a bid and
+#: no offer: with no NO bids, the derived YES ask is $1.00 at zero size.
+KALSHI_BID_ONLY = {"ticker": "K1", "yes_bid_dollars": "0.9700",
+                   "yes_ask_dollars": "1.0000", "yes_bid_size_fp": "250.00",
+                   "yes_ask_size_fp": "0.00", "no_bid_dollars": "0.0000",
+                   "no_ask_dollars": "0.0300", "quoted": True}
+
+
+def test_an_ask_of_one_dollar_is_no_offer_on_any_book_venue():
+    """0 < bid <= ask < 1 on every venue that runs a book."""
+    from pmlab.archive import coerce_kalshi
+    k = coerce_kalshi([{"event_ticker": "E", "series_ticker": "S",
+                        "markets": [dict(KALSHI_BID_ONLY)]}], 2)[0]
+    assert calibration._quote_from_row("kalshi", k) is None
+    # the price rule holds even for a row whose flag says two-sided
+    assert calibration._quote_from_row(
+        "kalshi", {"yes_bid": 0.97, "yes_ask": 1.0, "two_sided": True}) is None
+    assert calibration._quote_from_row(
+        "polymarket", {"bestBid": 0.999, "bestAsk": 1.0}) is None
+    assert calibration._quote_from_row(
+        "predictit", {"bestSellYesCost": 0.98, "bestBuyYesCost": 1.0}) is None
+    # a crossed book is not a quote either
+    assert calibration._quote_from_row(
+        "polymarket", {"bestBid": 0.60, "bestAsk": 0.40}) is None
+    # and just inside the bound is an ordinary quote
+    assert calibration._quote_from_row(
+        "polymarket", {"bestBid": 0.998, "bestAsk": 0.999})[:2] == (0.998, 0.999)
+
+
+def test_a_kalshi_bid_only_cell_is_reported_one_sided(tmp_path):
+    """The cell is counted as refused, not scored at a 0.985 mid."""
+    data = tmp_path / "data"
+    write_snapshot(data / "20260208" / "1200Z.json.gz",
+                   "2026-02-08T12:00:00Z", [],
+                   kalshi=[{"event_ticker": "E", "series_ticker": "S",
+                            "category": "Economics",
+                            "markets": [dict(KALSHI_BID_ONLY)]}])
+    settle = tmp_path / "settlements"
+    write_settlements(settle, "kalshi", [
+        {"ticker": "K1", "result": "yes", "settlement_ts": SETTLED}])
+    from pmlab.archive import iter_snapshots
+    j = calibration.CalibrationJoin(calibration.load_settlements(settle))
+    for s in iter_snapshots(data):
+        j.observe(s)
+    rep = j.report()
+    assert rep["settled_markets_quoted_in_archive"] == 1
+    assert rep["observations"] == 0
+    assert rep["observations_rejected_one_sided"] == 1
 
 
 def _observations(tmp_path: Path):

@@ -18,9 +18,9 @@ from pathlib import Path
 
 import pytest
 
-from pmlab.archive import (kalshi_complement_identity, load_snapshot,
-                           parse_time, snapshot_paths, snapshot_time_from_path,
-                           to_float)
+from pmlab.archive import (coerce_kalshi, kalshi_complement_identity,
+                           load_snapshot, parse_time, snapshot_paths,
+                           snapshot_time_from_path, to_float)
 
 FIX = Path(__file__).parent / "fixtures"
 V1_STRING = FIX / "v1_20260823_0118Z.json.gz"
@@ -213,6 +213,63 @@ def test_v2_synthetic_carries_new_fields(v2_synthetic_path):
     assert pm["559677"]["outcomePrices"] == [0.0015, 0.9985]
     assert all(r["era"] == "numeric" for r in s.polymarket)
     assert s.manifold[0]["totalLiquidity"] == 20916.0
+
+
+# ------------------------------------------------- what counts as an offer
+
+def _kalshi_row(schema: int, **market) -> dict:
+    """One market coerced through the loader, from raw recorder strings."""
+    m = {"ticker": "KXT-26-A", "event_ticker": "KXT-26"}
+    m.update(market)
+    ev = [{"event_ticker": "KXT-26", "series_ticker": "KXT", "markets": [m]}]
+    return coerce_kalshi(ev, schema)[0]
+
+
+def test_a_kalshi_bid_only_book_is_one_sided():
+    """Kalshi derives the YES ask from the best NO bid. With no NO bids the
+    ask reads $1.00 at zero size: the book has a bid and no offer."""
+    r = _kalshi_row(2, yes_bid_dollars="0.9700", yes_ask_dollars="1.0000",
+                    yes_bid_size_fp="250.00", yes_ask_size_fp="0.00",
+                    no_bid_dollars="0.0000", no_ask_dollars="0.0300",
+                    quoted=True)
+    assert r["two_sided"] is False
+    assert r["quoted"] is True                 # the bid is a real order
+    assert kalshi_complement_identity([r]) == (0, 0)
+
+
+def test_a_kalshi_empty_book_is_not_quoted_whatever_the_blob_says():
+    """record.py stores quoted=True for a $1.00 ask on an empty book; the
+    loader recomputes the flag on schema 2 instead of trusting it."""
+    r = _kalshi_row(2, yes_bid_dollars="0.0000", yes_ask_dollars="1.0000",
+                    yes_bid_size_fp="0.00", yes_ask_size_fp="0.00",
+                    no_bid_dollars="0.0000", no_ask_dollars="1.0000",
+                    quoted=True)
+    assert r["quoted"] is False and r["two_sided"] is False
+
+
+def test_a_v1_kalshi_bid_only_book_is_one_sided_on_price_alone():
+    """v1 stored no sizes. A $1.00 ask with no NO bid is still no offer."""
+    r = _kalshi_row(1, yes_bid_dollars="0.9700", yes_ask_dollars="1.0000",
+                    no_bid_dollars="0.0000", no_ask_dollars="0.0300")
+    assert "yes_ask_size_fp" not in r
+    assert r["two_sided"] is False
+    assert r["quoted"] is True                 # v1 kept only quoted markets
+
+
+def test_a_side_with_zero_stored_size_is_no_side():
+    r = _kalshi_row(2, yes_bid_dollars="0.4000", yes_ask_dollars="0.4200",
+                    yes_bid_size_fp="10.00", yes_ask_size_fp="0.00")
+    assert r["two_sided"] is False
+
+
+def test_an_ordinary_kalshi_book_is_two_sided_in_both_schemas():
+    for schema, sizes in ((1, {}), (2, {"yes_bid_size_fp": "10.00",
+                                        "yes_ask_size_fp": "5.00"})):
+        r = _kalshi_row(schema, yes_bid_dollars="0.4000",
+                        yes_ask_dollars="0.4200", no_bid_dollars="0.5800",
+                        no_ask_dollars="0.6000", **sizes)
+        assert r["two_sided"] is True and r["quoted"] is True, schema
+        assert kalshi_complement_identity([r]) == (1, 0)
 
 
 @pytest.mark.skipif(not V2_REAL.exists(), reason="no real v2 fixture cut yet")

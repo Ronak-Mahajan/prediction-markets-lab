@@ -614,36 +614,35 @@ def _quote_from_row(venue: str, r: dict) -> tuple[float, float, float | None,
 
     Two-sidedness is a hard requirement on every venue that runs a book: a
     market with only one side quoted has not made a forecast this module
-    can score, and its "mid" is not a price anyone offered. On the archive
-    of 2026-09-11 (identity ``94708f0191ab79ed``, 121 snapshots) this
-    rejects 967 market/horizon cells, almost all of them Polymarket rows
-    with a missing ``bestBid`` or ``bestAsk``: checked the same day, no
-    Polymarket row in the first 30 snapshots quotes a bid or ask of exactly
-    zero, because the venue omits the field rather than sending a zero.
+    can score, and its "mid" is not a price anyone offered. A quote counts
+    as two-sided only when ``0 < bid <= ask < 1``, the same test
+    :func:`pmlab.ladders._quote` applies. The upper bound is what makes a
+    Kalshi bid-only book one-sided: the venue derives the YES ask from the
+    best NO bid, so an empty NO side reads as a $1.00 ask with zero size,
+    and a Kalshi row must also pass the loader's ``two_sided`` test, which
+    checks resting size where the recorder stored it. No order book can
+    rest an offer at $1.00 for a contract that pays at most $1.00, so the
+    same bound applies to Polymarket and PredictIt. Polymarket omits a
+    missing side rather than sending a zero, which the None test covers.
 
     Two-sidedness is **not** sufficient, and the tables say so rather than
-    filtering further. In that archive's 1 d sample the 679 forecasts whose
-    ask is at or above 0.90 have a *median spread of 86 cents*, and the
-    table reads -30.9 cents of favourite-longshot bias. Split them on the
-    spread and the effect is almost entirely width: the 286 with a spread
-    of 10 cents or less settled YES 98.6% of the time against a mean ask of
-    0.992 (a bias of -0.6 cents), while the 393 wider ones settled YES
-    42.7% of the time. Every favourite-longshot bin therefore reports a
-    median spread; a nominal ask resting on an empty book is a two-sided
-    quote and still not a price.
+    filtering further. A two-sided quote on a thin book can be tens of
+    cents wide, and its mid says little about the market's forecast, so
+    every favourite-longshot bin reports its median spread next to its
+    bias instead of choosing a spread cut-off.
 
     Manifold is the exception and is flagged as one: it publishes a single
     probability rather than a book, so its bid and ask are that number.
     """
     if venue == "kalshi":
         bid, ask = r.get("yes_bid"), r.get("yes_ask")
-        if bid is None or ask is None or not r.get("two_sided"):
+        if not r.get("two_sided") or not _is_book_quote(bid, ask):
             return None
         return (bid, ask, r.get("open_interest"),
                 str(r.get("category") or "unknown"), "")
     if venue == "polymarket":
         bid, ask = r.get("bestBid"), r.get("bestAsk")
-        if bid is None or ask is None or bid <= 0.0 or ask <= 0.0:
+        if not _is_book_quote(bid, ask):
             return None
         return bid, ask, r.get("liquidity"), "unknown", str(r.get("era") or "")
     if venue == "manifold":
@@ -653,10 +652,15 @@ def _quote_from_row(venue: str, r: dict) -> tuple[float, float, float | None,
         return p, p, r.get("totalLiquidity"), "unknown", ""
     if venue == "predictit":
         bid, ask = r.get("bestSellYesCost"), r.get("bestBuyYesCost")
-        if bid is None or ask is None or bid <= 0.0 or ask <= 0.0:
+        if not _is_book_quote(bid, ask):
             return None
         return bid, ask, None, "unknown", ""
     return None
+
+
+def _is_book_quote(bid: float | None, ask: float | None) -> bool:
+    """A resting bid and a resting offer, in order, strictly inside (0, 1)."""
+    return bid is not None and ask is not None and 0.0 < bid <= ask < 1.0
 
 
 _VENUE_KEY = {
@@ -795,7 +799,9 @@ class CalibrationJoin:
             "one_sided_rule": (
                 "a market/horizon cell whose only in-window quote had no bid "
                 "or no ask is reported unscored: a one-sided book has not "
-                "made a forecast, and its mid is not a price"),
+                "made a forecast, and its mid is not a price. A quote is "
+                "two-sided only when 0 < bid <= ask < 1, so a Kalshi ask "
+                "of $1.00, which carries zero size, counts as no ask"),
             "stale_rule": (
                 f"a market/horizon cell whose newest quote at or before the "
                 f"cut-off was more than {MAX_QUOTE_AGE_HOURS:g} h older than "
