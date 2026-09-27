@@ -41,9 +41,11 @@ What is pinned here, and what is deliberately not:
   its own schedule. A row without them is charged the schedule captured
   verbatim in ``docs/polymarket-market-fees-2026-09-27.json``, which
   holds every market behind a complement violation in the archive. A
-  market in neither is charged the highest rate in Polymarket's category
-  schedule (0.04 to 0.07, geopolitics 0, in force since 2026-03-30), so
-  a violation counted net of fee survives whatever its category.
+  market in neither is charged the highest rate in the category table
+  Polymarket publishes (0.04 to 0.07, geopolitics 0), so a violation
+  counted net of fee survives every rate in that table. Fees have covered
+  every category but geopolitics since 2026-03-30, before the archive
+  opens, so no quote in it is fee-free by default.
 * **PredictIt** charges 10% of the *profit* on a position that wins (not
   of the notional, and nothing at all on a loser) plus 5% on withdrawal
   of funds from the site. A complement pair pays the profit fee on
@@ -83,9 +85,10 @@ SOURCES: dict[str, str] = {
                   "2026-09-27: taker fee = C x feeRate x p x (1 - p), "
                   "rounded to 5 decimal places, nothing charged to makers, "
                   "category rates from 0.04 to 0.07 and 0 for geopolitics. "
-                  "The changelog (docs.polymarket.com/changelog) dates that "
-                  "schedule to 2026-03-30 and says fees are computed from "
-                  "each market's feeSchedule object. Per-market schedules "
+                  "The changelog (docs.polymarket.com/changelog) dates fees "
+                  "on every category but geopolitics to 2026-03-30 and says "
+                  "fees are computed from each market's feeSchedule object. "
+                  "Per-market schedules "
                   "come from the public Gamma API, GET "
                   "gamma-api.polymarket.com/markets/{id}, recorded on every "
                   "row by record.py and captured verbatim for the archive's "
@@ -254,11 +257,16 @@ def kalshi_pair_fee(price_a: float, price_b: float, contracts: int = 1,
 # Polymarket
 # --------------------------------------------------------------------------
 
-#: Polymarket's published taker rates by market category, in force from
-#: 2026-03-30 (docs.polymarket.com/trading/fees and /changelog). The
-#: archive opens on 2026-08-23, so every quote in it falls under this
-#: schedule; an earlier replay would need the schedule before it.
-POLYMARKET_CATEGORY_SCHEDULE_FROM = date(2026, 3, 30)
+#: From this date Polymarket charges takers on every category but
+#: geopolitics (docs.polymarket.com/changelog, "Fee Structure V2"). The
+#: archive opens on 2026-08-23, so no quote in it is fee-free by default.
+POLYMARKET_FEES_ALL_CATEGORIES_FROM = date(2026, 3, 30)
+
+#: Taker rates by market category as docs.polymarket.com/trading/fees lists
+#: them on 2026-09-27. They are not what a market is charged: each market
+#: carries its own feeSchedule, and one category can hold several (the
+#: snapshot of 2026-09-27T04:58Z has sports markets on sports_fees_v2 at
+#: 0.03 and on sports_fees_v3 at 0.05). The table sets the fallback below.
 POLYMARKET_CATEGORY_TAKER_RATES: dict[str, Decimal] = {
     "crypto": Decimal("0.07"),
     "sports": Decimal("0.05"),
@@ -275,8 +283,8 @@ POLYMARKET_CATEGORY_TAKER_RATES: dict[str, Decimal] = {
 
 #: The rate charged on a market with no recorded and no captured schedule.
 #: No snapshot stores a market's category, so it is unknown there, and the
-#: highest category rate is charged: a violation that survives it survives
-#: every category's fee.
+#: highest rate in the table is charged: a violation that survives it
+#: survives every rate the table lists.
 POLYMARKET_FALLBACK_TAKER_RATE: Decimal = max(
     POLYMARKET_CATEGORY_TAKER_RATES.values())
 

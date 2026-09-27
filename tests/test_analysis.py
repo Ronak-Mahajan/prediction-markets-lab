@@ -248,13 +248,13 @@ def test_an_uncaptured_market_is_charged_the_highest_category_rate():
     assert fees.polymarket_taker_fee(0.50) == 0.0175          # 0.07 * 0.25
 
 
-def test_the_archive_opens_under_the_category_schedule():
-    """The category schedule is flat in time, which is exact only if every
-    snapshot was recorded after it took effect."""
+def test_the_archive_opens_after_fees_cover_every_category():
+    """A non-zero fallback is right only if every snapshot was recorded
+    after Polymarket began charging on every category."""
     from pmlab.archive import snapshot_paths, snapshot_time_from_path
     first = snapshot_paths(ROOT / "data")[0]
     assert (snapshot_time_from_path(first).date()
-            >= fees.POLYMARKET_CATEGORY_SCHEDULE_FROM)
+            >= fees.POLYMARKET_FEES_ALL_CATEGORIES_FROM)
 
 
 def test_polymarket_schedule_table_matches_the_capture():
@@ -281,9 +281,6 @@ def test_polymarket_schedule_table_matches_the_capture():
     # one record for every market the capture was selected for
     assert ({v["id"] for v in doc["violations"]}
             == {str(m["id"]) for m in doc["markets"]})
-    # and every captured rate is one the venue publishes for some category
-    published = set(fees.POLYMARKET_CATEGORY_TAKER_RATES.values())
-    assert all(rate in published for rate, _ in table.values())
 
 
 def test_the_recorder_keeps_the_polymarket_fee_terms(monkeypatch):
