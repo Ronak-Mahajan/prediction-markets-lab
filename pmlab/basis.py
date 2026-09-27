@@ -262,8 +262,26 @@ def leg_quote(venue: str, row: dict, side: str) -> tuple[float, float] | None:
     return bid, ask
 
 
-def leg_fee(venue: str, price: float, key: str | None = None) -> float:
+#: The fields of a recorded row that set its leg's fee: the Kalshi series
+#: (for the reduced multipliers) and the Polymarket market and fee terms.
+FEE_FIELDS = ("series_ticker", "conditionId", "id", "feesEnabled",
+              "feeSchedule")
+
+
+def fee_fields(row: dict) -> dict:
+    """The part of a recorded row :func:`leg_fee` reads."""
+    return {k: row[k] for k in FEE_FIELDS if k in row}
+
+
+def leg_fee(venue: str, price: float, key: str | None = None,
+            row: dict | None = None) -> float:
     """Taker fee in dollars for one contract at ``price`` on ``venue``.
+
+    ``row`` is the leg's recorded row (or its :func:`fee_fields`). A Kalshi
+    leg is charged its series' multiplier, read from the row's
+    ``series_ticker``: ``key`` is a market ticker, which the multiplier
+    table does not list. A Polymarket leg is charged the market's own
+    schedule, see :func:`pmlab.fees.polymarket_schedule`.
 
     PredictIt does not charge on entry at all; it takes 10% of the profit
     if the position wins and 5% of what is withdrawn. Charging the full
@@ -271,10 +289,11 @@ def leg_fee(venue: str, price: float, key: str | None = None) -> float:
     on what a PredictIt leg costs, which is the direction a screen should
     err in.
     """
+    row = row or {}
     if venue == "kalshi":
-        return fees_mod.kalshi_taker_fee(price, 1)
+        return fees_mod.kalshi_taker_fee(price, 1, row.get("series_ticker"))
     if venue == "polymarket":
-        return fees_mod.polymarket_taker_fee(price, 1.0, key)
+        return fees_mod.polymarket_taker_fee(price, 1.0, key, row)
     if venue == "predictit":
         proceeds = 1.0 - fees_mod.predictit_profit_fee(price, 1.0)
         proceeds -= fees_mod.predictit_withdrawal_fee(proceeds)
@@ -283,21 +302,23 @@ def leg_fee(venue: str, price: float, key: str | None = None) -> float:
 
 
 def pair_edges(a: tuple[float, float], b: tuple[float, float],
-               leg_a: Leg, leg_b: Leg) -> dict:
+               leg_a: Leg, leg_b: Leg, row_a: dict | None = None,
+               row_b: dict | None = None) -> dict:
     """Gross and net edge for both directions of one cross-venue pair.
 
     Buying YES on one venue and NO on the other pays exactly $1 however the
     question resolves, so the A->B direction costs ``ask_a + (1 - bid_b)``
-    and the gross edge is ``bid_b - ask_a``.
+    and the gross edge is ``bid_b - ask_a``. ``row_a`` and ``row_b`` are
+    the legs' recorded rows, which set each leg's fee (see :func:`leg_fee`).
     """
     bid_a, ask_a = a
     bid_b, ask_b = b
     gross_ab = bid_b - ask_a
-    net_ab = gross_ab - leg_fee(leg_a.venue, ask_a, leg_a.key) \
-        - leg_fee(leg_b.venue, 1.0 - bid_b, leg_b.key)
+    net_ab = gross_ab - leg_fee(leg_a.venue, ask_a, leg_a.key, row_a) \
+        - leg_fee(leg_b.venue, 1.0 - bid_b, leg_b.key, row_b)
     gross_ba = bid_a - ask_b
-    net_ba = gross_ba - leg_fee(leg_b.venue, ask_b, leg_b.key) \
-        - leg_fee(leg_a.venue, 1.0 - bid_a, leg_a.key)
+    net_ba = gross_ba - leg_fee(leg_b.venue, ask_b, leg_b.key, row_b) \
+        - leg_fee(leg_a.venue, 1.0 - bid_a, leg_a.key, row_a)
     best = "a->b" if net_ab >= net_ba else "b->a"
     return {"gross_ab": gross_ab, "net_ab": net_ab,
             "gross_ba": gross_ba, "net_ba": net_ba,
@@ -360,8 +381,10 @@ class BasisJoin:
         self.pairfile = pairfile
         self.pairs = pairfile.verified
         self.snapshots_seen = 0
-        #: {pair id: [(t, (bid_a, ask_a), (bid_b, ask_b))]}
-        self._series: dict[str, list[tuple[datetime, tuple, tuple]]] = {
+        #: {pair id: [(t, (bid_a, ask_a), (bid_b, ask_b), fees_a, fees_b)]},
+        #: where fees_x is the :func:`fee_fields` of that leg's row
+        self._series: dict[str, list[tuple[datetime, tuple, tuple, dict,
+                                           dict]]] = {
             p.id: [] for p in self.pairs}
         #: {pair id: [legs seen at all]} - a pair whose key is simply not in
         #: the catalog is a curation error, and saying so is the point.
@@ -390,16 +413,19 @@ class BasisJoin:
                 if k is not None and str(k) in keys:
                     index[venue][str(k)] = r
         for p in self.pairs:
-            qs = []
+            qs, fs = [], []
             for leg in p.legs:
                 row = index.get(leg.venue, {}).get(leg.key)
                 if row is None:
                     qs.append(None)
+                    fs.append({})
                     continue
                 self._leg_seen[p.id].add(leg.label())
                 qs.append(leg_quote(leg.venue, row, leg.side))
+                fs.append(fee_fields(row))
             if qs[0] is not None and qs[1] is not None:
-                self._series[p.id].append((snap.t, qs[0], qs[1]))
+                self._series[p.id].append((snap.t, qs[0], qs[1],
+                                           fs[0], fs[1]))
 
     def report(self) -> dict:
         pf = self.pairfile
@@ -438,11 +464,11 @@ class BasisJoin:
                        "curation error, not a market fact"))
                 rep["pairs"].append(row)
                 continue
-            mids_a = [(q[0] + q[1]) / 2.0 for _, q, _ in series]
-            mids_b = [(q[0] + q[1]) / 2.0 for _, _, q in series]
+            mids_a = [(s[1][0] + s[1][1]) / 2.0 for s in series]
+            mids_b = [(s[2][0] + s[2][1]) / 2.0 for s in series]
             basis = [(a - b) * 100.0 for a, b in zip(mids_a, mids_b)]
-            edges = [pair_edges(qa, qb, p.legs[0], p.legs[1])
-                     for _, qa, qb in series]
+            edges = [pair_edges(qa, qb, p.legs[0], p.legs[1], fa, fb)
+                     for _, qa, qb, fa, fb in series]
             nets = [e["best_net"] * 100.0 for e in edges]
             gross = [e["best_gross"] * 100.0 for e in edges]
             gaps = [(series[i + 1][0] - series[i][0]).total_seconds() / 3600.0

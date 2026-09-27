@@ -776,17 +776,24 @@ def test_too_few_steps_reports_no_half_life():
     assert "fewer than" in hl["reason"]
 
 
-def test_a_verified_pair_is_priced_across_the_archive(tmp_path):
-    """One verified pair, a constant 5-cent mid basis, 24 snapshots."""
+def run_pair_archive(tmp_path: Path, series: str = "S",
+                     ticker: str = "A", poly_fields: dict | None = None
+                     ) -> dict:
+    """24 snapshots of one verified Kalshi/Polymarket pair, joined.
+
+    Kalshi quotes 0.65/0.75 and Polymarket 0.55/0.65 in every snapshot.
+    ``series`` is the Kalshi event's series and ``poly_fields`` holds extra
+    fields for the Polymarket row, such as its recorded fee terms."""
     data = tmp_path / "data"
+    prow = dict(poly("1", 0.55, 0.65), **(poly_fields or {}))
     for i in range(24):
         t = f"2026-02-{2 + i // 8:02d}T{(i % 8) * 3:02d}:00:00Z"
         write_snapshot(
             data / f"202602{2 + i // 8:02d}" / f"{(i % 8) * 3:02d}00Z.json.gz",
-            t, [poly("1", 0.55, 0.65)],
-            kalshi=[{"event_ticker": "E", "series_ticker": "S",
+            t, [prow],
+            kalshi=[{"event_ticker": "E", "series_ticker": series,
                      "category": "Economics", "markets": [{
-                         "ticker": "A", "title": "t", "yes_sub_title": "s",
+                         "ticker": ticker, "title": "t", "yes_sub_title": "s",
                          "yes_bid_dollars": "0.6500",
                          "yes_ask_dollars": "0.7500",
                          "no_bid_dollars": "0.2500",
@@ -799,14 +806,19 @@ def test_a_verified_pair_is_priced_across_the_archive(tmp_path):
         "  - id: x\n    question: q\n    deadline: '2027-01-01T00:00:00Z'\n"
         "    verified: true\n    checked_on: '2026-02-01'\n"
         "    checked_by: tester\n    legs:\n"
-        "      - {venue: kalshi, key: A, side: 'yes'}\n"
+        f"      - {{venue: kalshi, key: {ticker}, side: 'yes'}}\n"
         "      - {venue: polymarket, key: '1', side: 'yes'}\n",
         encoding="utf-8")
     from pmlab.archive import iter_snapshots
     j = basis.BasisJoin(basis.load_pairs(p))
     for s in iter_snapshots(data):
         j.observe(s)
-    rep = j.report()
+    return j.report()
+
+
+def test_a_verified_pair_is_priced_across_the_archive(tmp_path):
+    """One verified pair, a constant 10-cent mid basis, 24 snapshots."""
+    rep = run_pair_archive(tmp_path)
     assert rep["empty"] is False
     assert rep["pairs_verified"] == 1
     row = rep["pairs"][0]
@@ -823,6 +835,40 @@ def test_a_verified_pair_is_priced_across_the_archive(tmp_path):
     assert row["edge_cents"]["snapshots_net_positive"] == 0
     # A constant basis has no decay, so no half-life is reported.
     assert row["half_life"]["half_life_hours"] is None
+
+
+def test_a_kalshi_leg_pays_its_series_fee():
+    """KXGDPYEAR pays no Kalshi fee. The series comes from the recorded
+    row: a leg's key is a market ticker, which the table does not list."""
+    ticker = "KXGDPYEAR-26-T2.0"
+    assert basis.leg_fee("kalshi", 0.50, ticker) == pytest.approx(0.02)
+    assert basis.leg_fee("kalshi", 0.50, ticker,
+                         {"series_ticker": "KXGDPYEAR"}) == 0.0
+    a, b = (0.55, 0.60), (0.65, 0.70)
+    free = {"feesEnabled": False}
+    e = basis.pair_edges(a, b, basis.Leg("kalshi", ticker),
+                         basis.Leg("polymarket", "1"),
+                         {"series_ticker": "KXGDPYEAR"}, free)
+    assert e["net_ab"] == pytest.approx(e["gross_ab"]) == pytest.approx(0.05)
+    e = basis.pair_edges(a, b, basis.Leg("kalshi", ticker),
+                         basis.Leg("polymarket", "1"),
+                         {"series_ticker": "KXINXY"}, free)
+    assert e["net_ab"] == pytest.approx(0.03)          # the general 2 cents
+
+
+def test_each_leg_of_a_priced_pair_pays_its_own_fee(tmp_path):
+    """The join carries each leg's series and fee terms from its row. With
+    the Kalshi leg on a zero-fee series and a Polymarket market that has
+    fees disabled, b->a (buy Polymarket YES at 0.65, Kalshi NO at 0.35)
+    nets exactly its gross edge of zero."""
+    rep = run_pair_archive(tmp_path, series="KXGDPYEAR",
+                           ticker="KXGDPYEAR-26-T2.0",
+                           poly_fields={"feesEnabled": False})
+    row = rep["pairs"][0]
+    assert row["observations"] == 24
+    assert row["edge_cents"]["gross_max"] == pytest.approx(0.0)
+    assert row["edge_cents"]["net_median"] == pytest.approx(0.0)
+    assert row["edge_cents"]["snapshots_net_positive"] == 0
 
 
 def test_a_pair_whose_legs_are_not_in_the_catalog_says_so(tmp_path):
