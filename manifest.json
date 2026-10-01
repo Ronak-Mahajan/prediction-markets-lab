@@ -1,11 +1,11 @@
 {
  "schema": 1,
- "updated": "2026-10-01T01:21:22+00:00",
- "snapshot_count": 99,
+ "updated": "2026-10-01T09:04:06+00:00",
+ "snapshot_count": 100,
  "first": "data/20260911/1539Z.json.gz",
- "last": "data/20261001/0120Z.json.gz",
- "total_bytes": 291557744,
- "manifest_sha256": "cff1aabf7bf2884c8b679c52459a13741562c1abd5c4c2af9bae431f46c2d5b9",
+ "last": "data/20261001/0903Z.json.gz",
+ "total_bytes": 294577916,
+ "manifest_sha256": "7e5d13caaed14ffec8e80c7c32b74590368e725371e347d83955a2a234589a61",
  "blobs": {
   "data/20260911/1539Z.json.gz": {
    "sha256": "b62b59593ebcef0a57f2b375f4fd7e265ad84d77479a7abb0f6c556a1b0d694e",
@@ -402,6 +402,10 @@
   "data/20261001/0120Z.json.gz": {
    "sha256": "de80d61c70981f27c5f571886f915c0f5f3b78830b8a98d79a59eb0a29e63576",
    "bytes": 3115460
+  },
+  "data/20261001/0903Z.json.gz": {
+   "sha256": "5faeabc2dc7c17f58620dcc22953aaddb14f10760d325843c3b359bf7baba5da",
+   "bytes": 3020172
   }
  }
 }
