@@ -1363,5 +1363,44 @@
     "seconds": 0.3
    }
   }
+ },
+ {
+  "errors": {},
+  "t": "2026-10-03T10:40:26+00:00",
+  "venues": {
+   "kalshi": {
+    "backfill_cursor": "2026-08-23T00:00:00+00:00",
+    "backfill_pages": 0,
+    "backfill_windows": 0,
+    "backfilled": true,
+    "cap_hit": false,
+    "head_pages": 80,
+    "kept": 18360,
+    "mode": "incremental",
+    "scanned": 79798,
+    "seconds": 48.5
+   },
+   "manifold": {
+    "candidates": 52,
+    "capped": false,
+    "polled": 52,
+    "resolved": 2,
+    "seconds": 9.7
+   },
+   "polymarket": {
+    "candidates": 8537,
+    "capped": false,
+    "closed_seen": 265,
+    "new_records": 265,
+    "requests": 427,
+    "seconds": 163.7
+   },
+   "predictit": {
+    "known_contracts": 886,
+    "live_contracts": 621,
+    "new_inferred": 9,
+    "seconds": 0.4
+   }
+  }
  }
 ]
